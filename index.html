@@ -1,3930 +1,1136 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connected Choices</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Walk in My Feed</title>
+<style>
+  :root{
+    --ink:#14121f;
+    --paper:#f6f4fb;
+    --panel:#ffffff;
+    --line:#e7e3f3;
+    --text:#1d1a2b;
+    --text-dim:#6b6580;
+    --glimpse:#ff4d8d;
+    --glimpse-soft:#ffd1e6;
+    --circuit:#5b5fef;
+    --circuit-soft:#c9caff;
+    --pulse:#20b366;
+    --pulse-soft:#c8f5d8;
+    --loopz:#e08e1d;
+    --loopz-soft:#ffe3b8;
+    --system:#8b93a7;
+    --system-soft:#e2e5ee;
+    --good:#20b366;
+    --warn:#e08e1d;
+    --bad:#e5484d;
+    --font-display:-apple-system,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    --font-mono:"SF Mono","Consolas","Courier New",monospace;
+  }
 
-    <link rel="stylesheet" href="style.css">
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:var(--ink);
+    color:var(--text);
+    font-family:var(--font-display);
+    overflow:hidden;
+  }
+
+  button{ font-family:inherit; cursor:pointer; }
+
+  /* -------------------------------------------------------------
+     Ambient background (visible behind the panel screens)
+  ------------------------------------------------------------- */
+  #ambient-bg{
+    position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(560px 560px at 15% 10%, rgba(255,77,141,0.16), transparent 60%),
+      radial-gradient(620px 620px at 88% 82%, rgba(91,95,239,0.20), transparent 60%),
+      var(--ink);
+  }
+
+  /* -------------------------------------------------------------
+     PANEL SCREENS (splash, character select, summary, policy, etc)
+  ------------------------------------------------------------- */
+  #panelStage{
+    position:fixed; inset:0; z-index:2;
+    display:flex; align-items:center; justify-content:center;
+    padding:32px 20px;
+  }
+  #panelStage.hidden{ display:none; }
+
+  .panel-screen{
+    display:none;
+    width:100%; max-width:640px;
+    animation:panelIn .45s ease both;
+  }
+  .panel-screen.active{ display:block; }
+
+  @keyframes panelIn{
+    from{ opacity:0; transform:translateY(14px) scale(.985); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+
+  .card{
+    background:var(--panel);
+    border-radius:28px;
+    padding:44px 40px;
+    box-shadow:0 30px 80px rgba(5,4,10,0.5);
+  }
+
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--circuit);
+    font-weight:700;
+    margin-bottom:10px;
+  }
+  h1.headline{ font-size:30px; font-weight:800; margin:0 0 12px; letter-spacing:-0.5px; line-height:1.15; }
+  h2.headline{ font-size:24px; font-weight:800; margin:0 0 10px; letter-spacing:-0.3px; }
+  p.sub{ font-size:14.5px; color:var(--text-dim); line-height:1.7; margin:0 0 26px; max-width:480px; }
+
+  .btn{
+    border:none; border-radius:999px; padding:14px 26px;
+    font-size:14px; font-weight:700; letter-spacing:.2px;
+    transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  .btn-primary{
+    background:linear-gradient(120deg, var(--glimpse), var(--circuit));
+    color:#fff;
+    box-shadow:0 14px 30px rgba(91,95,239,0.35);
+  }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 18px 36px rgba(91,95,239,0.42); }
+  .btn-primary:disabled{ opacity:.35; box-shadow:none; cursor:not-allowed; transform:none; }
+  .btn-ghost{
+    background:transparent; color:var(--text); border:1.5px solid var(--line);
+  }
+  .btn-ghost:hover{ border-color:var(--circuit); color:var(--circuit); }
+
+  /* logo mark used on the splash screen */
+  .logo-mark{
+    width:56px; height:56px; border-radius:18px; margin-bottom:22px;
+    background:linear-gradient(135deg, var(--glimpse), var(--circuit));
+    position:relative;
+  }
+  .logo-mark::before, .logo-mark::after{
+    content:""; position:absolute; border-radius:50%; background:rgba(255,255,255,0.9);
+  }
+  .logo-mark::before{ width:14px; height:14px; top:14px; left:14px; }
+  .logo-mark::after{ width:8px; height:8px; bottom:12px; right:12px; background:rgba(255,255,255,0.55); }
+
+  /* character select */
+  .char-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:26px;
+  }
+  .char-card{
+    border:2px solid var(--line); border-radius:20px; padding:18px 16px;
+    text-align:left; background:#fff; transition:border-color .15s ease, transform .15s ease;
+  }
+  .char-card:hover{ transform:translateY(-2px); }
+  .char-card.selected{ border-color:var(--circuit); box-shadow:0 0 0 4px rgba(91,95,239,0.12); }
+  .char-avatar{
+    width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:800; font-size:15px; margin-bottom:12px;
+  }
+  .char-name-row{ display:flex; align-items:baseline; gap:6px; margin-bottom:4px; }
+  .char-name{ font-size:15px; font-weight:800; }
+  .char-age{ font-size:12px; color:var(--text-dim); }
+  .char-tag{
+    font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.8px;
+    color:var(--text-dim); margin-bottom:8px;
+  }
+  .char-bio{ font-size:12px; line-height:1.55; color:var(--text-dim); }
+
+  /* day summary stat grid */
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:22px; }
+  .stat-card{ background:var(--paper); border-radius:16px; padding:16px; }
+  .stat-num{ font-size:24px; font-weight:800; letter-spacing:-0.5px; }
+  .stat-name{ font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim); margin-top:4px; }
+  .flag-card{
+    grid-column:1 / -1; background:#fdeceb; border:1.5px solid #f3b9b6; border-radius:16px;
+    padding:14px 16px; font-size:13px; color:#8a2622; display:none;
+  }
+  .flag-card.show{ display:block; }
+
+  /* policy options */
+  .policy-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:24px; }
+  .policy-opt{
+    text-align:left; border:2px solid var(--line); border-radius:16px; padding:14px 16px;
+    background:#fff; font-size:13.5px; font-weight:600; transition:border-color .15s ease;
+  }
+  .policy-opt:hover{ border-color:var(--circuit); }
+  .policy-opt.selected{ border-color:var(--circuit); background:#f2f2ff; }
+
+  .result-panel{
+    background:var(--paper); border-radius:16px; padding:16px 18px; margin-bottom:22px;
+  }
+  .result-label{ font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim); margin-bottom:8px; }
+  .result-text{ font-size:13.5px; line-height:1.7; }
+
+  /* -------------------------------------------------------------
+     PHONE STAGE
+  ------------------------------------------------------------- */
+  #phoneStage{
+    position:fixed; inset:0; z-index:1;
+    display:none; align-items:center; justify-content:center;
+    background:
+      radial-gradient(560px 560px at 15% 10%, rgba(255,77,141,0.14), transparent 60%),
+      radial-gradient(620px 620px at 88% 85%, rgba(91,95,239,0.18), transparent 60%),
+      var(--ink);
+  }
+  #phoneStage.active{ display:flex; }
+
+  .phone-frame{
+    width:min(360px, 92vw);
+    height:min(760px, 90vh);
+    background:#0b0a12;
+    border-radius:46px;
+    padding:14px;
+    box-shadow:0 40px 90px rgba(0,0,0,0.55), inset 0 0 0 2px rgba(255,255,255,0.05);
+    display:flex; flex-direction:column; position:relative;
+  }
+  .phone-notch{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    width:120px; height:22px; background:#0b0a12; border-radius:0 0 16px 16px; z-index:5;
+  }
+  .phone-statusbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 22px 4px; color:#fff; font-size:12px; font-weight:700;
+    font-family:var(--font-mono); flex:0 0 auto;
+  }
+  .sb-icons{ display:flex; gap:5px; align-items:center; opacity:.9; letter-spacing:1px; font-size:10px; }
+
+  .phone-screen-area{
+    flex:1; position:relative; overflow:hidden;
+    background:var(--paper); border-radius:30px;
+  }
+  .phone-inner{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    opacity:0; transform:translateY(10px);
+    animation:screenIn .4s ease forwards;
+  }
+  @keyframes screenIn{ to{ opacity:1; transform:translateY(0); } }
+
+  .phone-home-indicator{
+    width:120px; height:4px; border-radius:3px; background:rgba(255,255,255,0.35);
+    margin:8px auto 2px; flex:0 0 auto;
+  }
+
+  /* home screen content */
+  .home-screen{ padding:16px 18px 0; display:flex; flex-direction:column; height:100%; }
+  .phase-row{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .phase-label{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); font-weight:700; }
+  .phase-dots{ display:flex; gap:5px; }
+  .phase-dot{ width:6px; height:6px; border-radius:50%; background:var(--line); }
+  .phase-dot.done{ background:var(--glimpse); }
+  .phase-dot.current{ background:var(--circuit); box-shadow:0 0 0 3px rgba(91,95,239,0.18); }
+  .big-clock{ font-size:36px; font-weight:800; margin:4px 0 22px; letter-spacing:-1px; }
+
+  .app-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:18px 8px; margin-top:auto; margin-bottom:22px; }
+  .app-icon-wrap{ display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .app-icon{ width:50px; height:50px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:17px; color:#fff; font-weight:800; box-shadow:0 5px 12px rgba(0,0,0,0.18); }
+  .app-name{ font-size:8.5px; color:var(--text-dim); font-family:var(--font-mono); }
+
+  /* notification banner */
+  .notif-banner{
+    position:absolute; left:10px; right:10px; top:16px; z-index:20;
+    background:rgba(255,255,255,0.94); border-radius:16px; padding:11px 12px;
+    display:flex; gap:10px; align-items:flex-start;
+    box-shadow:0 12px 26px rgba(20,18,31,0.28);
+    transform:translateY(-160%); transition:transform .55s cubic-bezier(.34,1.4,.4,1);
+    cursor:pointer;
+  }
+  .notif-banner.show{ transform:translateY(0); }
+  .notif-icon{ width:32px; height:32px; border-radius:9px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:800; }
+  .notif-body{ flex:1; min-width:0; }
+  .notif-app-row{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:8.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; }
+  .notif-title{ font-size:12px; font-weight:800; margin-top:2px; }
+  .notif-preview{ font-size:11px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .day-complete-banner{
+    margin-top:auto; margin-bottom:20px; background:var(--ink); color:#fff; border-radius:18px;
+    padding:16px; text-align:center; cursor:pointer;
+  }
+  .day-complete-banner .eyebrow{ color:var(--glimpse-soft); }
+  .day-complete-banner h4{ margin:2px 0 4px; font-size:15px; }
+  .day-complete-banner p{ margin:0; font-size:11.5px; opacity:.75; }
+
+  /* decision screen */
+  .decision-screen{ display:flex; flex-direction:column; height:100%; }
+  .decision-header{ padding:18px 18px 6px; flex:0 0 auto; }
+  .decision-app-tag{ font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); font-weight:700; }
+  .decision-title{ font-size:18px; font-weight:800; margin-top:4px; letter-spacing:-.3px; }
+  .decision-context{ flex:1 1 auto; overflow-y:auto; padding:6px 18px 10px; }
+  .decision-context p{ font-size:13px; line-height:1.65; color:var(--text); margin:0 0 4px; }
+
+  .feed-card{ background:var(--panel); border-radius:16px; padding:12px; margin-top:10px; box-shadow:0 3px 12px rgba(20,18,31,0.08); }
+  .feed-head{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .feed-avatar{ width:26px; height:26px; border-radius:50%; flex:0 0 auto; }
+  .feed-username{ font-size:12px; font-weight:800; }
+  .feed-media{ height:110px; border-radius:12px; margin:2px 0 8px; }
+  .feed-caption{ font-size:12px; color:var(--text-dim); line-height:1.5; }
+  .feed-stats-row{ display:flex; gap:14px; margin-top:9px; font-size:10.5px; color:var(--text-dim); font-family:var(--font-mono); }
+  .feed-comment{ font-size:11.5px; color:var(--text-dim); margin-top:6px; border-top:1px solid var(--line); padding-top:6px; }
+  .feed-comment b{ color:var(--text); }
+
+  .chat-thread{ display:flex; flex-direction:column; gap:9px; margin-top:8px; }
+  .bubble-wrap{ display:flex; flex-direction:column; align-items:flex-start; }
+  .bubble-name{ font-size:9px; color:var(--text-dim); margin:0 0 2px 4px; font-family:var(--font-mono); }
+  .bubble{ max-width:80%; padding:9px 12px; border-radius:16px; font-size:12.5px; line-height:1.42; background:#efedf7; color:var(--text); border-bottom-left-radius:5px; }
+
+  .alert-card{ background:var(--panel); border-radius:16px; padding:20px 16px; margin-top:12px; text-align:center; box-shadow:0 3px 12px rgba(20,18,31,0.08); }
+  .alert-icon{ width:46px; height:46px; border-radius:50%; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:19px; font-weight:800; }
+
+  .notif-stack{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  .notif-row{ display:flex; gap:9px; align-items:center; background:var(--panel); border-radius:13px; padding:9px 11px; box-shadow:0 2px 8px rgba(20,18,31,0.06); }
+  .notif-row .notif-icon{ width:26px; height:26px; border-radius:8px; font-size:11px; }
+  .notif-row-text{ font-size:11.5px; line-height:1.4; }
+
+  .choice-sheet{ flex:0 0 auto; padding:10px 16px 16px; display:flex; flex-direction:column; gap:8px; border-top:1px solid var(--line); background:var(--paper); }
+  .choice-btn{
+    text-align:left; padding:12px 14px; border-radius:14px; border:1.5px solid var(--line);
+    background:#fff; font-size:12.5px; font-weight:700; color:var(--text);
+    transition:transform .12s ease, border-color .12s ease;
+  }
+  .choice-btn:hover{ border-color:var(--circuit); transform:translateY(-1px); }
+  .choice-btn:active{ transform:translateY(0); }
+
+  /* feedback screen */
+  .feedback-screen{ display:flex; flex-direction:column; height:100%; }
+  .feedback-hero{ flex:0 0 auto; padding:22px 18px 16px; background:linear-gradient(120deg, var(--glimpse), var(--circuit)); color:#fff; }
+  .feedback-hero .eyebrow{ color:rgba(255,255,255,0.85); margin-bottom:6px; }
+  .feedback-hero h3{ font-size:16px; margin:0; letter-spacing:-.2px; }
+  .feedback-body{ flex:1 1 auto; overflow-y:auto; padding:16px 18px 8px; display:flex; flex-direction:column; gap:14px; }
+
+  .stat-label{ font-size:10.5px; font-family:var(--font-mono); color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; margin-bottom:7px; font-weight:700; }
+  .percent-bar-track{ height:8px; border-radius:5px; background:var(--line); overflow:hidden; }
+  .percent-bar-fill{ height:100%; border-radius:5px; background:linear-gradient(90deg, var(--glimpse), var(--circuit)); width:0%; transition:width 1s cubic-bezier(.2,.8,.2,1); }
+  .percent-caption{ font-size:11.5px; color:var(--text-dim); margin-top:7px; line-height:1.5; }
+
+  .compare-grid{ display:grid; grid-template-columns:1fr; gap:9px; }
+  .compare-card{ border-radius:12px; padding:11px 12px; font-size:11.5px; line-height:1.55; }
+  .compare-card.assume{ background:#fdf1e6; border:1px solid #f3ddb8; }
+  .compare-card.reality{ background:#eef7ee; border:1px solid #cfe8cf; }
+  .compare-label{ font-family:var(--font-mono); font-size:9px; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; font-weight:800; }
+
+  .quote-card{ background:var(--ink); color:#fff; border-radius:14px; padding:14px 15px; font-size:12.5px; font-style:italic; line-height:1.6; }
+  .quote-tag{ font-family:var(--font-mono); font-style:normal; font-size:9px; color:rgba(255,255,255,0.55); text-transform:uppercase; letter-spacing:.5px; margin-top:8px; }
+
+  .reflect-box{ background:#fff; border:1.5px dashed var(--line); border-radius:12px; padding:12px 13px; }
+  .reflect-question{ font-size:12px; font-weight:800; margin-bottom:8px; line-height:1.4; }
+  .reflect-input{ width:100%; border:none; background:transparent; font-family:inherit; font-size:11.5px; resize:none; outline:none; color:var(--text-dim); }
+
+  .feedback-footer{ flex:0 0 auto; padding:12px 18px 16px; }
+  .full-btn{ width:100%; text-align:center; display:block; }
+
+  @media (max-width:420px){
+    .stat-grid{ grid-template-columns:1fr; }
+    .char-grid{ grid-template-columns:1fr; }
+  }
+</style>
 </head>
 <body>
 
-    <!-- ========================= -->
-    <!-- GAME CONTAINER -->
-    <!-- ========================= -->
+<div id="ambient-bg"></div>
 
-    <div id="gameContainer">
+<!-- ======================= PANEL SCREENS ======================= -->
+<div id="panelStage">
 
-        <!-- Canvas -->
-        <canvas id="gameCanvas" width="960" height="540"></canvas>
-
-        <!-- HUD -->
-        <div id="hud">
-
-            <div class="stat">
-                ❤️ <span id="relationship">5</span>
-            </div>
-
-            <div class="stat">
-                🪙 <span id="trust">0</span>
-            </div>
-
-            <div class="stat">
-                📱 <span id="freedom">3</span>
-            </div>
-
-        </div>
-
-        <!-- Dialogue Box -->
-        <div id="dialogueBox" class="hidden">
-
-            <div id="speaker"></div>
-
-            <div id="dialogueText"></div>
-
-            <div id="continue">
-                Press E
-            </div>
-
-        </div>
-
-        <!-- Title Screen -->
-        <div id="titleScreen">
-
-            <h1>CONNECTED CHOICES</h1>
-
-            <p>
-                Every decision shapes your digital family.
-            </p>
-
-            <button id="startButton">
-                START GAME
-            </button>
-
-        </div>
-
+  <section id="screen-splash" class="panel-screen active">
+    <div class="card" style="text-align:center;">
+      <div class="logo-mark" style="margin-left:auto;margin-right:auto;"></div>
+      <div class="eyebrow" style="text-align:center;">An Empathy Simulator For Adults</div>
+      <h1 class="headline" style="text-align:center;">Walk in My Feed</h1>
+      <p class="sub" style="margin-left:auto;margin-right:auto;text-align:center;">
+        This isn't a lesson about online safety. It's a day — one full day —
+        lived through a teenager's phone. Every notification, every group chat,
+        every quiet decision is one a real teen makes constantly, often without
+        anyone else noticing.
+      </p>
+      <button class="btn btn-primary" id="btnSplashStart">Begin the Simulation</button>
     </div>
+  </section>
 
-    <script src="script.js"></script>
+  <section id="screen-select" class="panel-screen">
+    <div class="card">
+      <div class="eyebrow">Choose A Teen</div>
+      <h2 class="headline">Whose day will you live?</h2>
+      <p class="sub">Each character changes the tone of the notifications, the app you'll spend the most time in, and the pressures you'll feel.</p>
+      <div class="char-grid" id="charGrid"></div>
+      <button class="btn btn-primary" id="btnBeginSim" disabled>Begin Simulation</button>
+    </div>
+  </section>
 
+  <section id="screen-summary" class="panel-screen">
+    <div class="card">
+      <div class="eyebrow">End Of Day</div>
+      <h2 class="headline" id="summaryHeadline">Today, By The Numbers</h2>
+      <p class="sub">Here's what a single ordinary day looked like from the inside.</p>
+      <div class="stat-grid" id="statGrid"></div>
+      <div class="flag-card" id="flagCard">
+        <strong>One moment stood out.</strong> A choice today crossed into cyberbullying —
+        sharing something that embarrassed a friend further, without meaning any real harm by it.
+        This happens constantly, in seconds, often without a second thought.
+      </div>
+      <button class="btn btn-primary" id="btnToPolicy">Continue to Reflection</button>
+    </div>
+  </section>
+
+  <section id="screen-policy" class="panel-screen">
+    <div class="card">
+      <div class="eyebrow">Policy Reflection</div>
+      <h2 class="headline">What policy would you introduce?</h2>
+      <p class="sub">Based on the day you just lived, choose the rule you'd bring home.</p>
+      <div class="policy-list" id="policyList"></div>
+      <button class="btn btn-primary" id="btnSeeResult" disabled>See How Students Responded</button>
+    </div>
+  </section>
+
+  <section id="screen-policyResult" class="panel-screen">
+    <div class="card">
+      <div class="eyebrow">Real Student Responses</div>
+      <h2 class="headline" id="resultPolicyLabel">Your Policy</h2>
+      <div class="result-panel">
+        <div class="result-label">How Students Actually Responded</div>
+        <div class="result-text" id="resultPolicyText"></div>
+      </div>
+      <button class="btn btn-primary" id="btnToFinale">See Final Reflection</button>
+    </div>
+  </section>
+
+  <section id="screen-finale" class="panel-screen">
+    <div class="card" style="text-align:center;">
+      <div class="eyebrow" style="text-align:center;">Simulation Complete</div>
+      <h2 class="headline" style="text-align:center;" id="finaleHeadline">You walked a day in their feed.</h2>
+      <p class="sub" style="margin-left:auto;margin-right:auto;text-align:center;">
+        Every choice you made today, a real teenager makes too — usually several times before breakfast.
+        None of it is as simple as it looks from the outside.
+      </p>
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btnAnotherTeen">Try Another Teen</button>
+        <button class="btn btn-ghost" id="btnRestartAll">Restart Simulation</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- ======================= PHONE STAGE ======================= -->
+<div id="phoneStage">
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="phone-statusbar">
+      <span id="sbTime">7:41</span>
+      <span class="sb-icons">●●● ▮▮▮▮</span>
+    </div>
+    <div class="phone-screen-area">
+      <div class="phone-inner" id="phoneInner"></div>
+    </div>
+    <div class="phone-home-indicator"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   WALK IN MY FEED — a single-file empathy simulator
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   DATA — characters, app metadata, the ten decisions, and policies
+------------------------------------------------------------------------- */
+const CHARACTERS = [
+  { id:"maya", name:"Maya", age:15, tag:"The Social One", app:"Glimpse", color:"#ff4d8d",
+    bio:"Posts almost every day and checks who liked it within minutes. Worries a lot about fitting in with her friend group." },
+  { id:"leo", name:"Leo", age:16, tag:"The Gamer", app:"Circuit", color:"#5b5fef",
+    bio:"On Circuit voice chat with his squad most nights until late. His parents are pretty sure he's addicted." },
+  { id:"sam", name:"Sam", age:14, tag:"The New Kid", app:"Pulse", color:"#20b366",
+    bio:"Switched schools three months ago. Uses group chats to figure out who to sit with at lunch. Gets anxious fast." },
+  { id:"zara", name:"Zara", age:17, tag:"The High Achiever", app:"Loopz", color:"#e08e1d",
+    bio:"Four AP classes, a part-time job, and a Loopz habit at midnight that's the only thing that quiets her brain." }
+];
+
+const APP_META = {
+  Glimpse:{ color:"#ff4d8d", soft:"#ffd1e6", glyph:"G" },
+  Circuit:{ color:"#5b5fef", soft:"#c9caff", glyph:"C" },
+  Pulse:{ color:"#20b366", soft:"#c8f5d8", glyph:"P" },
+  Loopz:{ color:"#e08e1d", soft:"#ffe3b8", glyph:"L" },
+  system:{ color:"#8b93a7", soft:"#e2e5ee", glyph:"!" }
+};
+
+const UTILITY_APPS = [
+  { name:"Mail", glyph:"M" }, { name:"Camera", glyph:"\u25C9" },
+  { name:"Clock", glyph:"\u25F7" }, { name:"Weather", glyph:"\u2600" },
+  { name:"Notes", glyph:"N" }, { name:"Calendar", glyph:"\u25A6" },
+  { name:"Settings", glyph:"\u2699" }, { name:"Maps", glyph:"\u25C8" }
+];
+
+const PHASES = ["Morning", "School", "Afternoon", "Evening", "Night"];
+const STATUS_TIMES = ["7:41", "11:58", "3:24", "6:47", "10:52"];
+
+// Ten decisions across the five phases of the day.
+const SCENARIOS = [
+  {
+    phase:0, type:"notification", app:"system",
+    title:"17 Notifications", notifCount:17,
+    context:"You wake up and unlock your phone. Seventeen notifications are already waiting \u2014 likes, comments, a group chat, and an app you don't even remember opening yesterday.",
+    breakdown:[
+      { app:"{app}", text:"12 people liked your post from last night" },
+      { app:"Pulse", text:"3 new messages in \u201CWeekend Squad\u201D" },
+      { app:"system", text:"2 apps have updates available" }
+    ],
+    choices:[
+      { label:"Check notifications first", percent:58, minutes:12, tags:{fomo:true},
+        explanation:"For most teens, the notification badge itself creates pressure \u2014 leaving it unread feels like leaving something unfinished.",
+        adultAssumption:"Adults often assume teens check first thing purely out of boredom or entertainment.",
+        quote:"It's not that I want to. It's that the little red number won't leave me alone.",
+        reflection:"When did checking notifications first become the default, instead of a choice?" },
+      { label:"Get ready for school first", percent:27, minutes:2, tags:{positive:true},
+        explanation:"Some teens have built a habit of physically leaving the phone in another room to make this choice easier.",
+        adultAssumption:"Adults often assume this takes real willpower every single morning.",
+        quote:"I charge it in the kitchen now. If it's not in my room, I don't think about it as much.",
+        reflection:"What would make \u201Cget ready first\u201D the easy choice instead of the hard one?" },
+      { label:"Finish homework before responding", percent:15, minutes:5, tags:{positive:true},
+        explanation:"A smaller group treats homework as non-negotiable before anything social, often because of one bad experience with a late assignment.",
+        adultAssumption:"Adults often assume every teen would pick homework first, if just given the choice.",
+        quote:"I only started doing this after I forgot an assignment because I was replying to texts.",
+        reflection:"What experience might it take for a habit like this one to actually stick?" }
+    ]
+  },
+  {
+    phase:0, type:"feed", app:"{app}",
+    title:"Before You're Even Awake",
+    context:"Overnight, {name} posted something on {app}. It already has comments \u2014 including one from someone {name} doesn't love.",
+    username:"{name_lower}", captionText:"{name} posted a new photo.", likes:134,
+    comment:{ from:"jules_m", text:"wait is this real..." },
+    choices:[
+      { label:"Reply right away", percent:41, minutes:6, tags:{fomo:true},
+        explanation:"Replying quickly can feel like damage control \u2014 teens worry a slow reply reads as ignoring someone on purpose.",
+        adultAssumption:"Adults often assume a fast reply means someone is glued to their phone for fun.",
+        quote:"If I don't say something back fast, it looks like I'm mad, even when I'm not.",
+        reflection:"Whose read of the situation is actually correct here \u2014 the teen's, or the adult's?" },
+      { label:"Wait until after breakfast", percent:38, minutes:1, tags:{positive:true},
+        explanation:"Teens who wait usually say the comment mattered less by the time they got back to it.",
+        adultAssumption:"Adults often assume waiting means the teen doesn't care about the post at all.",
+        quote:"Most of the time it's not even a big deal anymore by breakfast.",
+        reflection:"How often does urgency turn out to be self-imposed rather than real?" },
+      { label:"Turn off notifications for now", percent:21, minutes:1, tags:{positive:true},
+        explanation:"A smaller group actively manages notification settings \u2014 a skill that's rarely taught directly.",
+        adultAssumption:"Adults often assume teens don't even know this feature exists.",
+        quote:"I mute it for an hour when I actually need to get ready.",
+        reflection:"Could this be taught as a habit, rather than left to be discovered by accident?" }
+    ]
+  },
+  {
+    phase:1, type:"feed", app:"{app}",
+    title:"Lunchtime Video",
+    context:"A video of your friend tripping in the hallway is already making the rounds. It's not mean-spirited yet \u2014 but it's spreading fast, and your friend hasn't seen it.",
+    username:"unknown_hallwaycam", captionText:"guys watch this (don't tell her lol)", likes:212,
+    comment:{ from:"random_kid_1", text:"this is so funny" },
+    choices:[
+      { label:"Ignore it", percent:24, minutes:0, tags:{negative:true},
+        explanation:"Some teens ignore situations like this because they're unsure it's their place to step in, not because they don't care.",
+        adultAssumption:"Adults often read \u201Cignoring it\u201D as not caring at all.",
+        quote:"I didn't post it, so I figured it wasn't really my problem.",
+        reflection:"Is staying out of it actually neutral, or does it have its own effect?" },
+      { label:"Share it with others", percent:9, minutes:1, tags:{negative:true, cyberbullying:true},
+        explanation:"A small number share without thinking it through \u2014 often just because it's funny in the moment, not out of any intent to hurt anyone.",
+        adultAssumption:"Adults often assume sharing like this is deliberate cruelty.",
+        quote:"I sent it to like two people before I even thought about how she'd feel.",
+        reflection:"How much distance is there between \u201Cfunny\u201D and \u201Charmful\u201D online \u2014 and who notices the gap first?" },
+      { label:"Report the video", percent:19, minutes:2, tags:{positive:true},
+        explanation:"Teens who report say the option itself matters \u2014 but many don't trust that reporting actually does anything.",
+        adultAssumption:"Adults often assume teens don't report because they don't care about the rules.",
+        quote:"I've reported stuff before and nothing happened, so I wasn't sure it was worth it this time.",
+        reflection:"What would make reporting feel like it actually works?" },
+      { label:"Message your friend privately", percent:48, minutes:3, tags:{positive:true},
+        explanation:"The most common response is quiet and direct \u2014 giving the friend a heads-up before it spreads further, without making it a bigger public moment.",
+        adultAssumption:"Adults often assume the loudest response is the most caring one.",
+        quote:"I just texted her \u2018hey, heads up\u2019 so she wasn't blindsided later.",
+        reflection:"Why might a quiet, private response be more caring than a public one?" }
+    ]
+  },
+  {
+    phase:1, type:"alert", app:"system",
+    title:"Buzzing in Class",
+    context:"Your phone buzzes twice under your desk. A group chat is heating up about weekend plans, and you can feel it in your pocket.",
+    choices:[
+      { label:"Check it quickly under the desk", percent:44, minutes:3, tags:{fomo:true, homeworkIgnored:true},
+        explanation:"Teens describe this as a small, low-risk way to stay in the loop without fully checking out of class.",
+        adultAssumption:"Adults often see this as open defiance of a \u201Cno phones\u201D rule.",
+        quote:"I'm still listening, I promise. I just don't want to be the last one to know what's happening.",
+        reflection:"Is a quick glance the same thing as not paying attention?" },
+      { label:"Ignore it until break", percent:33, minutes:0, tags:{positive:true},
+        explanation:"Teens who wait usually already trust that the group chat will still be there \u2014 nothing is actually urgent.",
+        adultAssumption:"Adults often assume every buzz feels urgent to a teenager.",
+        quote:"It's usually still going when I check later. I'm not missing much.",
+        reflection:"How much of \u201Curgency\u201D is really about the buzz itself, not the content?" },
+      { label:"Turn phone to silent and focus", percent:23, minutes:0, tags:{positive:true},
+        explanation:"A smaller group has built the habit of proactively silencing the phone rather than reacting buzz by buzz.",
+        adultAssumption:"Adults often assume teens need to be told to do this, every single time.",
+        quote:"I started doing this myself after a teacher called me out once. Never again.",
+        reflection:"What helped this habit form \u2014 a rule, or an experience?" }
+    ]
+  },
+  {
+    phase:2, type:"feed", app:"{app}",
+    title:"The Comparison Scroll",
+    context:"School's out. {name} opens {app} to unwind, and the feed is a highlight reel \u2014 parties, trips, perfect photos, one after another.",
+    username:"ava.travels", captionText:"spring break >>>", likes:389,
+    comment:{ from:"someone_u_know", text:"okay but how" },
+    choices:[
+      { label:"Keep scrolling", percent:46, minutes:22, tags:{fomo:true, negative:true},
+        explanation:"Teens describe this less as enjoyment and more as an autopilot habit that's hard to interrupt once it starts.",
+        adultAssumption:"Adults often assume this is relaxing and fun the whole way through.",
+        quote:"Somewhere around minute ten it stops being fun and I keep going anyway.",
+        reflection:"What does \u201Cunwinding\u201D actually look like, versus what it's assumed to look like?" },
+      { label:"Post something of your own", percent:24, minutes:9, tags:{fomo:true},
+        explanation:"Posting can be an attempt to feel included in the highlight reel, not just a way to share something.",
+        adultAssumption:"Adults often assume posting is purely about showing off.",
+        quote:"Sometimes I post just so it doesn't look like nothing's happening in my life.",
+        reflection:"What's the difference between sharing and keeping up?" },
+      { label:"Close the app and do something else", percent:30, minutes:1, tags:{positive:true},
+        explanation:"Teens who close the app early often say they noticed the comparison feeling starting, and recognized it.",
+        adultAssumption:"Adults often assume teens can't tell when scrolling is making them feel worse.",
+        quote:"I can usually feel it turning bad before it actually does.",
+        reflection:"What if that self-awareness were treated as a skill worth building on, not a lucky exception?" }
+    ]
+  },
+  {
+    phase:2, type:"chat", app:"{app}",
+    title:"A Text That Stings",
+    context:"A friend sends a joke in your DMs that's a little too pointed. It's probably nothing. Probably.",
+    messages:[
+      { from:"Friend", text:"lol did you really wear that today" },
+      { from:"Friend", text:"jk jk... kinda" }
+    ],
+    choices:[
+      { label:"Fire back a joke", percent:31, minutes:4, tags:{negative:true},
+        explanation:"Matching the tone is often a defense mechanism \u2014 it keeps things light on the surface even if it stung.",
+        adultAssumption:"Adults often assume a joking response means nothing actually landed.",
+        quote:"I laughed it off in the chat. Didn't feel like laughing after, though.",
+        reflection:"How often does a joking reply hide what someone's actually feeling?" },
+      { label:"Let it go", percent:35, minutes:0, tags:{negative:true},
+        explanation:"Letting it go quietly is common, but teens often admit it doesn't actually resolve anything \u2014 it just avoids conflict.",
+        adultAssumption:"Adults often assume \u201Cletting it go\u201D means it truly didn't matter.",
+        quote:"I let it go. Doesn't mean I forgot about it.",
+        reflection:"Is avoiding conflict the same as resolving it?" },
+      { label:"Ask if they're being serious", percent:27, minutes:2, tags:{positive:true},
+        explanation:"Directly asking is less common but tends to actually clear things up \u2014 teens just worry it'll make them seem overly sensitive.",
+        adultAssumption:"Adults often assume asking directly is the obvious, easy choice.",
+        quote:"I was scared asking would make it a bigger deal than it was. It didn't.",
+        reflection:"What makes a direct question feel risky, even when it's the most useful option?" },
+      { label:"Screenshot and vent to another friend", percent:7, minutes:5, tags:{negative:true},
+        explanation:"A small group processes the moment by bringing in someone else \u2014 which can escalate a two-person issue into a group one.",
+        adultAssumption:"Adults often assume venting privately is harmless.",
+        quote:"I just needed someone to tell me I wasn't overreacting.",
+        reflection:"At what point does venting for support turn into spreading the conflict further?" }
+    ]
+  },
+  {
+    phase:3, type:"chat", app:"{app}",
+    title:"Group Chat Drama",
+    context:"The group chat explodes \u2014 someone wasn't invited to something, and everyone has an opinion. Forty new messages in ten minutes.",
+    messages:[
+      { from:"Priya", text:"wait so I wasn't invited??" },
+      { from:"Marcus", text:"it wasn't like that" },
+      { from:"Priya", text:"sure feels like that" },
+      { from:"Jules", text:"can we not do this in the group chat" }
+    ],
+    choices:[
+      { label:"Respond and take a side", percent:22, minutes:14, tags:{negative:true},
+        explanation:"Taking a visible side can feel like loyalty, but teens say it often locks them into a conflict that wasn't originally theirs.",
+        adultAssumption:"Adults often assume staying out of it entirely is the obviously smart move.",
+        quote:"Once you say something, you can't really take it back in a group chat.",
+        reflection:"What makes silence and taking a side feel like the only two options?" },
+      { label:"Stay silent and watch", percent:39, minutes:19, tags:{negative:true, fomo:true},
+        explanation:"Watching without responding is the most common choice, but it still keeps a teen glued to the chat for the whole thing.",
+        adultAssumption:"Adults often assume silence means someone has disengaged completely.",
+        quote:"I wasn't typing anything, but I definitely wasn't doing anything else either.",
+        reflection:"Is watching quietly actually a break from the drama, or just a different way of being in it?" },
+      { label:"Ask what happened calmly", percent:26, minutes:8, tags:{positive:true},
+        explanation:"Teens who de-escalate directly say it's uncomfortable in the moment but usually shortens the whole conflict.",
+        adultAssumption:"Adults often assume teens don't know how to de-escalate a group conflict.",
+        quote:"I just asked \u2018wait what actually happened\u2019 and it kind of deflated the whole thing.",
+        reflection:"What would it take to make de-escalating feel like the confident choice, not the awkward one?" },
+      { label:"Leave the group chat", percent:13, minutes:1, tags:{positive:true},
+        explanation:"Leaving is rare, but teens who do it describe real relief \u2014 even though they worry about being talked about afterward.",
+        adultAssumption:"Adults often assume leaving a chat is a small, easy thing to do.",
+        quote:"I muted it for an hour first. Leaving felt like a much bigger decision.",
+        reflection:"Why might leaving a group chat feel higher-stakes to a teen than it looks to an adult?" }
+    ]
+  },
+  {
+    phase:3, type:"alert", app:"system",
+    title:"Dinner Table Ping",
+    context:"Dinner just started. Your phone buzzes on the table, face down. Everyone notices.",
+    choices:[
+      { label:"Answer at the table", percent:19, minutes:2, tags:{negative:true},
+        explanation:"For some teens, an in-the-moment buzz feels more urgent than the meal \u2014 usually because of what's happening in a specific chat, not disrespect.",
+        adultAssumption:"Adults often read this as a flat lack of respect for family time.",
+        quote:"It's not that dinner doesn't matter, it's that I'm scared of what the buzz might be.",
+        reflection:"Could the same rule feel different if the reason behind the buzz were understood first?" },
+      { label:"Silence it and reply after", percent:52, minutes:1, tags:{positive:true},
+        explanation:"Most teens can and do wait \u2014 when the expectation is clear and consistent, it stops being a daily negotiation.",
+        adultAssumption:"Adults often assume this requires constant reminding to happen.",
+        quote:"Once it was just \u2018the rule,\u2019 I stopped even thinking about it at dinner.",
+        reflection:"What turns a rule from a fight into a habit?" },
+      { label:"Ask to be excused to check it", percent:29, minutes:3, tags:{fomo:true},
+        explanation:"Asking first is a middle ground some teens use \u2014 it acknowledges the family rule while managing their own worry about missing something.",
+        adultAssumption:"Adults often assume asking is just a polite way of getting what they want anyway.",
+        quote:"At least if I ask, it's not sneaky. That matters to me.",
+        reflection:"Does asking first change how a rule feels, even if the outcome is the same?" }
+    ]
+  },
+  {
+    phase:4, type:"alert", app:"{app}",
+    title:"Homework vs. Scrolling",
+    context:"It's 9:40 PM. There's a worksheet due tomorrow and a feed that refreshes every time you pull down. Both are open right now.",
+    choices:[
+      { label:"Finish homework first", percent:33, minutes:3, tags:{positive:true},
+        explanation:"Teens who do this consistently often have a specific system \u2014 like leaving the phone in another room until the work is done.",
+        adultAssumption:"Adults often assume any teen could do this if they just tried harder.",
+        quote:"It only works if the phone physically isn't in the room. Willpower alone doesn't cut it.",
+        reflection:"Is this really about willpower, or about environment design?" },
+      { label:"Scroll for five minutes... it becomes an hour", percent:41, minutes:58, tags:{negative:true, homeworkIgnored:true, fomo:true},
+        explanation:"This is the most common pattern, and teens are often the first to admit the app is designed to make \u201Cfive minutes\u201D very hard to stick to.",
+        adultAssumption:"Adults often assume this happens because teens simply don't value the homework.",
+        quote:"I know it's due tomorrow. I also know I've said \u2018five more minutes\u2019 for the last forty.",
+        reflection:"How much of this is a choice, and how much is the feed doing exactly what it was designed to do?" },
+      { label:"Do both at once, switching back and forth", percent:26, minutes:45, tags:{negative:true, homeworkIgnored:true},
+        explanation:"Switching back and forth feels productive in the moment, but teens often admit both things end up taking longer and going worse.",
+        adultAssumption:"Adults often assume multitasking like this doesn't really cost anything.",
+        quote:"It took me two hours to do twenty minutes of actual homework.",
+        reflection:"What would it look like to design the evening so this trade-off didn't have to happen at all?" }
+    ]
+  },
+  {
+    phase:4, type:"feed", app:"{app}",
+    title:"One Last Scroll",
+    context:"Lights off, phone still on. {name} tells themself it's just one more scroll before sleep.",
+    username:"midnightfeed", captionText:"you won't believe this one", likes:501,
+    comment:{ from:"cant_sleep_either", text:"why am I still awake" },
+    choices:[
+      { label:"Put the phone away", percent:21, minutes:0, tags:{positive:true},
+        explanation:"The smallest group manages to stop here \u2014 often because of a specific habit, like a charger kept outside the bedroom.",
+        adultAssumption:"Adults often assume any teen could do this every night if they wanted to.",
+        quote:"My charger's in the hallway now. That's honestly the whole trick.",
+        reflection:"What's the difference between a rule and a system that makes the rule easy to follow?" },
+      { label:"Keep scrolling until tired", percent:49, minutes:52, tags:{negative:true, fomo:true},
+        explanation:"This is the most common ending to the day \u2014 not out of enjoyment by this point, but because stopping requires a decision that scrolling doesn't.",
+        adultAssumption:"Adults often assume this is purely about entertainment, right up until the last minute.",
+        quote:"By midnight it's not even fun. I just don't know how to stop.",
+        reflection:"If stopping is the hard part, what would make stopping easier \u2014 for anyone, not just teens?" },
+      { label:"Set a 10-minute timer and stick to it", percent:30, minutes:11, tags:{positive:true},
+        explanation:"Teens who use a timer describe it as an external boundary that takes the decision out of their hands in the moment.",
+        adultAssumption:"Adults often assume a timer is a trivial, ineffective gesture.",
+        quote:"It's dumb but it works. When it goes off, it goes off.",
+        reflection:"Why might an external boundary succeed where willpower alone struggles?" }
+    ]
+  }
+];
+
+const POLICIES = [
+  { label:"No phones until homework is done",
+    result:"Most students said they'd just do homework on a laptop or tablet instead, or stay up later finishing the phone stuff first \u2014 then start homework even later than before." },
+  { label:"Phone-free family dinner, no exceptions",
+    result:"This was one of the better-received policies, especially when parents put their own phones away too. It felt fair rather than like a punishment aimed only at them." },
+  { label:"Open conversation about what's actually happening online, no bans",
+    result:"Students consistently said this was the policy that actually changed something, because it didn't require hiding anything from the people who cared about them." },
+  { label:"Scheduled check-ins instead of surprise phone checks",
+    result:"Reactions were mixed. It felt more respectful than being checked on without warning, but several said it still didn't address why they were reaching for the phone in the first place." }
+];
+
+/* -------------------------------------------------------------------------
+   STATE
+------------------------------------------------------------------------- */
+const state = {
+  character:null,
+  decisionIndex:0,
+  phaseIndex:0,
+  stats:{ notifications:0, minutesOnline:0, homeworkIgnored:0, fomo:0, positive:0, negative:0, cyberbullying:false },
+  selectedPolicy:null
+};
+
+/* -------------------------------------------------------------------------
+   HELPERS
+------------------------------------------------------------------------- */
+function $(sel){ return document.querySelector(sel); }
+function fill(str){
+  if(!str) return "";
+  const c = state.character;
+  return str
+    .replace(/\{name\}/g, c.name)
+    .replace(/\{name_lower\}/g, c.name.toLowerCase())
+    .replace(/\{app\}/g, c.app);
+}
+function appMeta(appToken){
+  const resolved = appToken === "{app}" ? state.character.app : appToken;
+  return APP_META[resolved] || APP_META.system;
+}
+function formatMinutes(total){
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h > 0 ? (h + "h " + m + "m") : (m + "m");
+}
+
+/* -------------------------------------------------------------------------
+   PANEL / PHONE SWITCHING
+------------------------------------------------------------------------- */
+function showPanel(id){
+  $("#phoneStage").classList.remove("active");
+  $("#panelStage").classList.remove("hidden");
+  document.querySelectorAll(".panel-screen").forEach(s => s.classList.remove("active"));
+  $("#" + id).classList.add("active");
+}
+function showPhone(){
+  $("#panelStage").classList.add("hidden");
+  $("#phoneStage").classList.add("active");
+}
+function setPhoneScreen(html){
+  const inner = $("#phoneInner");
+  inner.style.animation = "none";
+  inner.innerHTML = html;
+  void inner.offsetWidth;
+  inner.style.animation = "";
+}
+
+/* -------------------------------------------------------------------------
+   CHARACTER SELECT
+------------------------------------------------------------------------- */
+function renderCharacterCards(){
+  const grid = $("#charGrid");
+  grid.innerHTML = CHARACTERS.map(c => `
+    <button class="char-card" data-id="${c.id}">
+      <div class="char-avatar" style="background:${c.color}">${c.name.charAt(0)}</div>
+      <div class="char-name-row"><span class="char-name">${c.name}</span><span class="char-age">${c.age}</span></div>
+      <div class="char-tag">${c.tag}</div>
+      <div class="char-bio">${c.bio}</div>
+    </button>
+  `).join("");
+  grid.querySelectorAll(".char-card").forEach(card => {
+    card.addEventListener("click", () => {
+      grid.querySelectorAll(".char-card").forEach(el => el.classList.remove("selected"));
+      card.classList.add("selected");
+      state.character = CHARACTERS.find(c => c.id === card.dataset.id);
+      $("#btnBeginSim").disabled = false;
+    });
+  });
+}
+
+/* -------------------------------------------------------------------------
+   PHONE: HOME SCREEN
+------------------------------------------------------------------------- */
+function renderHome(){
+  const phase = state.phaseIndex;
+  const dots = PHASES.map((p, i) => {
+    let cls = "phase-dot";
+    if(i < phase) cls += " done";
+    if(i === phase) cls += " current";
+    return `<span class="${cls}"></span>`;
+  }).join("");
+
+  const storyApps = ["Glimpse","Circuit","Pulse","Loopz"].map(name => {
+    const m = APP_META[name];
+    return `<div class="app-icon-wrap"><div class="app-icon" style="background:${m.color}">${m.glyph}</div><div class="app-name">${name}</div></div>`;
+  }).join("");
+  const utilApps = UTILITY_APPS.map(a =>
+    `<div class="app-icon-wrap"><div class="app-icon" style="background:#8b93a7">${a.glyph}</div><div class="app-name">${a.name}</div></div>`
+  ).join("");
+
+  const dayDone = state.decisionIndex >= SCENARIOS.length;
+  const banner = dayDone
+    ? `<div class="day-complete-banner" id="bannerDone">
+         <div class="eyebrow">The Day Is Over</div>
+         <h4>Every light is off but one.</h4>
+         <p>See how the day added up.</p>
+       </div>`
+    : "";
+
+  setPhoneScreen(`
+    <div class="home-screen">
+      <div class="phase-row">
+        <span class="phase-label">${PHASES[phase]}</span>
+        <span class="phase-dots">${dots}</span>
+      </div>
+      <div class="big-clock">${STATUS_TIMES[phase]}</div>
+      <div class="app-grid">${storyApps}${utilApps}</div>
+      ${banner}
+    </div>
+  `);
+  $("#sbTime").textContent = STATUS_TIMES[phase];
+
+  if(dayDone){
+    $("#bannerDone").addEventListener("click", () => { renderDaySummary(); });
+  } else {
+    setTimeout(() => queueNotification(SCENARIOS[state.decisionIndex]), 550);
+  }
+}
+
+function queueNotification(scenario){
+  const meta = appMeta(scenario.app);
+  const title = fill(scenario.title);
+  let preview = "Tap to open";
+  if(scenario.type === "notification") preview = scenario.notifCount + " new notifications";
+  else if(scenario.type === "feed") preview = fill(scenario.captionText || "New activity");
+  else if(scenario.type === "chat") preview = scenario.messages[0].from + ": " + scenario.messages[0].text;
+  else preview = "Tap to open";
+
+  const banner = document.createElement("div");
+  banner.className = "notif-banner";
+  banner.innerHTML = `
+    <div class="notif-icon" style="background:${meta.color}">${meta.glyph}</div>
+    <div class="notif-body">
+      <div class="notif-app-row"><span>${scenario.app === "system" ? "Phone" : fill(scenario.app)}</span><span>now</span></div>
+      <div class="notif-title">${title}</div>
+      <div class="notif-preview">${preview}</div>
+    </div>
+  `;
+  $(".phone-screen-area").appendChild(banner);
+  requestAnimationFrame(() => requestAnimationFrame(() => banner.classList.add("show")));
+
+  banner.addEventListener("click", () => {
+    state.stats.notifications += scenario.notifCount || 4;
+    banner.remove();
+    openDecision(scenario);
+  });
+}
+
+/* -------------------------------------------------------------------------
+   PHONE: DECISION SCREEN
+------------------------------------------------------------------------- */
+function renderMockBlock(scenario){
+  if(scenario.type === "notification"){
+    const rows = scenario.breakdown.map(b => {
+      const m = appMeta(b.app);
+      return `<div class="notif-row"><div class="notif-icon" style="background:${m.color}">${m.glyph}</div><div class="notif-row-text">${fill(b.text)}</div></div>`;
+    }).join("");
+    return `<div class="notif-stack">${rows}</div>`;
+  }
+  if(scenario.type === "feed"){
+    const meta = appMeta(scenario.app);
+    return `
+      <div class="feed-card">
+        <div class="feed-head">
+          <div class="feed-avatar" style="background:${meta.color}"></div>
+          <div class="feed-username">@${scenario.username}</div>
+        </div>
+        <div class="feed-media" style="background:linear-gradient(135deg, ${meta.color}, ${meta.soft})"></div>
+        <div class="feed-caption">${fill(scenario.captionText)}</div>
+        <div class="feed-stats-row"><span>${scenario.likes} likes</span><span>${scenario.comment ? "1 comment" : "0 comments"}</span></div>
+        ${scenario.comment ? `<div class="feed-comment"><b>${scenario.comment.from}</b> ${scenario.comment.text}</div>` : ""}
+      </div>
+    `;
+  }
+  if(scenario.type === "chat"){
+    const bubbles = scenario.messages.map(m => `
+      <div class="bubble-wrap">
+        <div class="bubble-name">${m.from}</div>
+        <div class="bubble">${m.text}</div>
+      </div>
+    `).join("");
+    return `<div class="chat-thread">${bubbles}</div>`;
+  }
+  // alert
+  const meta = appMeta(scenario.app);
+  return `
+    <div class="alert-card">
+      <div class="alert-icon" style="background:${meta.color}">${meta.glyph}</div>
+    </div>
+  `;
+}
+
+function openDecision(scenario){
+  const meta = appMeta(scenario.app);
+  const choiceButtons = scenario.choices.map((c, i) =>
+    `<button class="choice-btn" data-idx="${i}">${c.label}</button>`
+  ).join("");
+
+  setPhoneScreen(`
+    <div class="decision-screen">
+      <div class="decision-header">
+        <div class="decision-app-tag" style="color:${meta.color}">${scenario.app === "system" ? "PHONE" : fill(scenario.app)}</div>
+        <div class="decision-title">${fill(scenario.title)}</div>
+      </div>
+      <div class="decision-context">
+        <p>${fill(scenario.context)}</p>
+        ${renderMockBlock(scenario)}
+      </div>
+      <div class="choice-sheet">${choiceButtons}</div>
+    </div>
+  `);
+
+  document.querySelectorAll(".choice-btn").forEach(btn => {
+    btn.addEventListener("click", () => chooseOption(scenario, parseInt(btn.dataset.idx, 10)));
+  });
+}
+
+/* -------------------------------------------------------------------------
+   CHOICE HANDLING + FEEDBACK SCREEN
+------------------------------------------------------------------------- */
+function chooseOption(scenario, idx){
+  const choice = scenario.choices[idx];
+  const tags = choice.tags || {};
+
+  state.stats.minutesOnline += choice.minutes || 0;
+  if(tags.positive) state.stats.positive++;
+  if(tags.negative) state.stats.negative++;
+  if(tags.fomo) state.stats.fomo++;
+  if(tags.homeworkIgnored) state.stats.homeworkIgnored++;
+  if(tags.cyberbullying) state.stats.cyberbullying = true;
+
+  state.decisionIndex++;
+  renderFeedback(scenario, choice);
+}
+
+function renderFeedback(scenario, choice){
+  setPhoneScreen(`
+    <div class="feedback-screen">
+      <div class="feedback-hero">
+        <div class="eyebrow">You Chose</div>
+        <h3>${choice.label}</h3>
+      </div>
+      <div class="feedback-body">
+        <div class="stat-block">
+          <div class="stat-label">What Other Teens Chose</div>
+          <div class="percent-bar-track"><div class="percent-bar-fill" id="pbar"></div></div>
+          <div class="percent-caption"><strong>${choice.percent}%</strong> of teens surveyed picked this same option. ${choice.explanation}</div>
+        </div>
+
+        <div class="compare-grid">
+          <div class="compare-card assume">
+            <div class="compare-label">Adult Assumption</div>
+            ${choice.adultAssumption}
+          </div>
+          <div class="compare-card reality">
+            <div class="compare-label">Teen Reality</div>
+            ${choice.explanation}
+          </div>
+        </div>
+
+        <div class="quote-card">
+          "${choice.quote}"
+          <div class="quote-tag">Anonymous Teen, Age 14&ndash;17</div>
+        </div>
+
+        <div class="reflect-box">
+          <div class="reflect-question">${choice.reflection}</div>
+          <textarea class="reflect-input" rows="2" placeholder="Type a private thought (optional, not saved)..."></textarea>
+        </div>
+      </div>
+      <div class="feedback-footer">
+        <button class="btn btn-primary full-btn" id="btnContinueDay">Continue the Day</button>
+      </div>
+    </div>
+  `);
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    $("#pbar").style.width = choice.percent + "%";
+  }));
+
+  $("#btnContinueDay").addEventListener("click", continueAfterFeedback);
+}
+
+function continueAfterFeedback(){
+  if(state.decisionIndex >= SCENARIOS.length){
+    renderHome();
+    return;
+  }
+  state.phaseIndex = SCENARIOS[state.decisionIndex].phase;
+  renderHome();
+}
+
+/* -------------------------------------------------------------------------
+   DAY SUMMARY
+------------------------------------------------------------------------- */
+function renderDaySummary(){
+  const s = state.stats;
+  $("#summaryHeadline").textContent = state.character.name + "\u2019s Day, By The Numbers";
+  $("#statGrid").innerHTML = `
+    <div class="stat-card"><div class="stat-num">${s.notifications}</div><div class="stat-name">Notifications Received</div></div>
+    <div class="stat-card"><div class="stat-num">${formatMinutes(s.minutesOnline)}</div><div class="stat-name">Time Spent Online</div></div>
+    <div class="stat-card"><div class="stat-num">${s.homeworkIgnored}</div><div class="stat-name">Homework Deprioritized</div></div>
+    <div class="stat-card"><div class="stat-num">${s.fomo}</div><div class="stat-name">FOMO Moments</div></div>
+    <div class="stat-card"><div class="stat-num">${s.positive}</div><div class="stat-name">Positive Interactions</div></div>
+    <div class="stat-card"><div class="stat-num">${s.negative}</div><div class="stat-name">Negative Interactions</div></div>
+  `;
+  $("#flagCard").classList.toggle("show", s.cyberbullying);
+  showPanel("screen-summary");
+}
+
+/* -------------------------------------------------------------------------
+   POLICY REFLECTION
+------------------------------------------------------------------------- */
+function renderPolicyScreen(){
+  const list = $("#policyList");
+  list.innerHTML = POLICIES.map((p, i) => `<button class="policy-opt" data-idx="${i}">${p.label}</button>`).join("");
+  list.querySelectorAll(".policy-opt").forEach(btn => {
+    btn.addEventListener("click", () => {
+      list.querySelectorAll(".policy-opt").forEach(el => el.classList.remove("selected"));
+      btn.classList.add("selected");
+      state.selectedPolicy = parseInt(btn.dataset.idx, 10);
+      $("#btnSeeResult").disabled = false;
+    });
+  });
+  showPanel("screen-policy");
+}
+
+function renderPolicyResult(){
+  const p = POLICIES[state.selectedPolicy];
+  $("#resultPolicyLabel").textContent = p.label;
+  $("#resultPolicyText").textContent = p.result;
+  showPanel("screen-policyResult");
+}
+
+/* -------------------------------------------------------------------------
+   FINALE + RESET
+------------------------------------------------------------------------- */
+function renderFinale(){
+  $("#finaleHeadline").textContent = "You walked a day in " + state.character.name + "\u2019s feed.";
+  showPanel("screen-finale");
+}
+
+function resetRun(){
+  state.decisionIndex = 0;
+  state.phaseIndex = 0;
+  state.stats = { notifications:0, minutesOnline:0, homeworkIgnored:0, fomo:0, positive:0, negative:0, cyberbullying:false };
+  state.selectedPolicy = null;
+}
+
+/* -------------------------------------------------------------------------
+   INITIALIZATION / EVENT BINDING
+------------------------------------------------------------------------- */
+renderCharacterCards();
+
+$("#btnSplashStart").addEventListener("click", () => showPanel("screen-select"));
+
+$("#btnBeginSim").addEventListener("click", () => {
+  resetRun();
+  showPhone();
+  renderHome();
+});
+
+$("#btnToPolicy").addEventListener("click", renderPolicyScreen);
+$("#btnSeeResult").addEventListener("click", renderPolicyResult);
+$("#btnToFinale").addEventListener("click", renderFinale);
+
+$("#btnAnotherTeen").addEventListener("click", () => {
+  state.character = null;
+  document.querySelectorAll(".char-card").forEach(el => el.classList.remove("selected"));
+  $("#btnBeginSim").disabled = true;
+  showPanel("screen-select");
+});
+
+$("#btnRestartAll").addEventListener("click", () => {
+  state.character = null;
+  document.querySelectorAll(".char-card").forEach(el => el.classList.remove("selected"));
+  $("#btnBeginSim").disabled = true;
+  showPanel("screen-splash");
+});
+</script>
 </body>
 </html>
-/* ==========================================
-   CONNECTED CHOICES
-   RETRO RPG STYLE
-========================================== */
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    user-select:none;
-}
-
-html,
-body{
-    width:100%;
-    height:100%;
-    overflow:hidden;
-    background:#111;
-    font-family:Verdana, Geneva, Tahoma, sans-serif;
-}
-
-#gameContainer{
-    position:relative;
-    width:100vw;
-    height:100vh;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    background:
-    radial-gradient(circle at top,#263238,#111);
-}
-
-/* ===========================
-   GAME CANVAS
-=========================== */
-
-#gameCanvas{
-
-    image-rendering:pixelated;
-    image-rendering:crisp-edges;
-
-    width:min(96vw,170vh);
-    height:auto;
-
-    border:6px solid #222;
-
-    background:#6ecb63;
-
-    box-shadow:
-    0 0 40px rgba(0,0,0,.6),
-    inset 0 0 20px rgba(255,255,255,.08);
-
-}
-
-/* ===========================
-   HUD
-=========================== */
-
-#hud{
-
-    position:absolute;
-
-    top:20px;
-    left:50%;
-
-    transform:translateX(-50%);
-
-    display:flex;
-    gap:20px;
-
-    background:#222;
-
-    color:white;
-
-    padding:10px 18px;
-
-    border:4px solid #444;
-
-    border-radius:10px;
-
-    z-index:20;
-
-    font-size:20px;
-
-}
-
-.stat{
-
-    min-width:120px;
-
-    text-align:center;
-
-}
-
-/* ===========================
-   DIALOGUE BOX
-=========================== */
-
-#dialogueBox{
-
-    position:absolute;
-
-    left:50%;
-    bottom:20px;
-
-    transform:translateX(-50%);
-
-    width:850px;
-    max-width:92%;
-
-    background:#202020;
-
-    color:white;
-
-    border:5px solid white;
-
-    border-radius:12px;
-
-    padding:20px;
-
-    z-index:30;
-
-}
-
-#speaker{
-
-    font-size:24px;
-
-    color:#ffd54f;
-
-    margin-bottom:10px;
-
-    font-weight:bold;
-
-}
-
-#dialogueText{
-
-    font-size:20px;
-
-    line-height:1.5;
-
-    min-height:65px;
-
-}
-
-#continue{
-
-    margin-top:15px;
-
-    text-align:right;
-
-    color:#7CFC00;
-
-    animation:blink .8s infinite alternate;
-
-}
-
-@keyframes blink{
-
-    from{
-        opacity:.3;
-    }
-
-    to{
-        opacity:1;
-    }
-
-}
-
-/* ===========================
-   TITLE SCREEN
-=========================== */
-
-#titleScreen{
-
-    position:absolute;
-
-    inset:0;
-
-    display:flex;
-
-    flex-direction:column;
-
-    justify-content:center;
-
-    align-items:center;
-
-    gap:25px;
-
-    background:
-    linear-gradient(#5d4037,#2e7d32);
-
-    color:white;
-
-    z-index:100;
-
-}
-
-#titleScreen h1{
-
-    font-size:72px;
-
-    letter-spacing:5px;
-
-    text-shadow:
-    4px 4px #000;
-
-}
-
-#titleScreen p{
-
-    font-size:24px;
-
-}
-
-#startButton{
-
-    cursor:pointer;
-
-    padding:18px 45px;
-
-    font-size:24px;
-
-    border:none;
-
-    border-radius:10px;
-
-    background:#ffca28;
-
-    transition:.2s;
-
-    font-weight:bold;
-
-}
-
-#startButton:hover{
-
-    transform:scale(1.08);
-
-    background:#ffd54f;
-
-}
-
-/* ===========================
-   UTILITIES
-=========================== */
-
-.hidden{
-
-    display:none;
-
-}
-//==================================================
-// CONNECTED CHOICES
-// script.js
-// PART 1
-//==================================================
-
-//=============================
-// CANVAS
-//=============================
-
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
-ctx.imageSmoothingEnabled = false;
-
-//=============================
-// UI
-//=============================
-
-const titleScreen = document.getElementById("titleScreen");
-const startButton = document.getElementById("startButton");
-
-const relationshipUI = document.getElementById("relationship");
-const trustUI = document.getElementById("trust");
-const freedomUI = document.getElementById("freedom");
-
-//=============================
-// GAME
-//=============================
-
-let gameStarted = false;
-
-const TILE = 48;
-
-//=============================
-// PLAYER
-//=============================
-
-const player = {
-
-    x: 5 * TILE,
-    y: 5 * TILE,
-
-    width: 32,
-    height: 32,
-
-    speed: 3,
-
-    color: "#1E88E5"
-
-};
-
-//=============================
-// STATS
-//=============================
-
-const stats = {
-
-    relationship: 5,
-    trust: 0,
-    freedom: 3
-
-};
-
-//=============================
-// INPUT
-//=============================
-
-const keys = {};
-
-window.addEventListener("keydown", e=>{
-
-    keys[e.key.toLowerCase()] = true;
-
-});
-
-window.addEventListener("keyup", e=>{
-
-    keys[e.key.toLowerCase()] = false;
-
-});
-
-//=============================
-// START BUTTON
-//=============================
-
-startButton.onclick = ()=>{
-
-    titleScreen.style.display="none";
-
-    gameStarted=true;
-
-    requestAnimationFrame(gameLoop);
-
-};
-
-//=============================
-// UPDATE
-//=============================
-
-function update(){
-
-    if(keys["w"] || keys["arrowup"])
-        player.y -= player.speed;
-
-    if(keys["s"] || keys["arrowdown"])
-        player.y += player.speed;
-
-    if(keys["a"] || keys["arrowleft"])
-        player.x -= player.speed;
-
-    if(keys["d"] || keys["arrowright"])
-        player.x += player.speed;
-
-    // Stay inside map
-
-    player.x=Math.max(0,Math.min(player.x,canvas.width-player.width));
-
-    player.y=Math.max(0,Math.min(player.y,canvas.height-player.height));
-
-    relationshipUI.textContent=stats.relationship;
-    trustUI.textContent=stats.trust;
-    freedomUI.textContent=stats.freedom;
-
-}
-
-//=============================
-// DRAW MAP
-//=============================
-
-function drawGround(){
-
-    for(let y=0;y<canvas.height;y+=TILE){
-
-        for(let x=0;x<canvas.width;x+=TILE){
-
-            ctx.fillStyle=((x+y)/TILE)%2==0
-                ? "#6FCF65"
-                : "#63C25C";
-
-            ctx.fillRect(x,y,TILE,TILE);
-
-        }
-
-    }
-
-}
-
-//=============================
-// TREES
-//=============================
-
-function drawTree(x,y){
-
-    ctx.fillStyle="#8D6E63";
-    ctx.fillRect(x+18,y+26,12,18);
-
-    ctx.fillStyle="#2E7D32";
-    ctx.beginPath();
-    ctx.arc(x+24,y+20,18,0,Math.PI*2);
-    ctx.fill();
-
-}
-
-//=============================
-// HOUSE
-//=============================
-
-function drawHouse(){
-
-    const x=670;
-    const y=120;
-
-    ctx.fillStyle="#C68642";
-    ctx.fillRect(x,y,150,120);
-
-    ctx.fillStyle="#8B0000";
-    ctx.beginPath();
-    ctx.moveTo(x-10,y);
-    ctx.lineTo(x+75,y-55);
-    ctx.lineTo(x+160,y);
-    ctx.fill();
-
-    ctx.fillStyle="#5D4037";
-    ctx.fillRect(x+55,y+65,40,55);
-
-}
-
-//=============================
-// PLAYER
-//=============================
-
-function drawPlayer(){
-
-    ctx.fillStyle=player.color;
-
-    ctx.fillRect(
-
-        player.x,
-        player.y,
-        player.width,
-        player.height
-
-    );
-
-    // Eyes
-
-    ctx.fillStyle="white";
-
-    ctx.fillRect(player.x+8,player.y+9,4,4);
-    ctx.fillRect(player.x+20,player.y+9,4,4);
-
-}
-
-//=============================
-// NPC
-//=============================
-
-function drawTeen(){
-
-    const x=725;
-    const y=300;
-
-    ctx.fillStyle="#FFB74D";
-
-    ctx.fillRect(x,y,30,30);
-
-    ctx.fillStyle="black";
-
-    ctx.fillRect(x+8,y+8,3,3);
-    ctx.fillRect(x+18,y+8,3,3);
-
-    ctx.fillStyle="white";
-
-    ctx.font="18px Arial";
-
-    ctx.fillText("Teen",x-5,y-10);
-
-}
-
-//=============================
-// DRAW
-//=============================
-
-function draw(){
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    drawGround();
-
-    drawTree(80,60);
-    drawTree(160,80);
-    drawTree(280,50);
-    drawTree(40,300);
-    drawTree(220,420);
-    drawTree(850,420);
-
-    drawHouse();
-
-    drawTeen();
-
-    drawPlayer();
-
-}
-
-//=============================
-// LOOP
-//=============================
-
-function gameLoop(){
-
-    update();
-
-    draw();
-
-    requestAnimationFrame(gameLoop);
-
-}
-//==================================================
-// CONNECTED CHOICES
-// script.js
-// PART 2
-// ADD AFTER PART 1
-//==================================================
-
-
-//=============================
-// CAMERA SYSTEM
-//=============================
-
-const camera = {
-
-    x:0,
-    y:0,
-
-    width:canvas.width,
-    height:canvas.height
-
-};
-
-
-function updateCamera(){
-
-    camera.x = player.x - canvas.width/2 + player.width/2;
-    camera.y = player.y - canvas.height/2 + player.height/2;
-
-
-    camera.x = Math.max(
-        0,
-        Math.min(camera.x, map.width - canvas.width)
-    );
-
-
-    camera.y = Math.max(
-        0,
-        Math.min(camera.y, map.height - canvas.height)
-    );
-
-}
-
-
-//=============================
-// MAP SYSTEM
-//=============================
-
-
-const map = {
-
-    name:"Home",
-
-    width:1200,
-    height:900
-
-};
-
-
-//=============================
-// COLLISION OBJECTS
-//=============================
-
-
-const obstacles=[
-
-    {
-        x:650,
-        y:120,
-        width:150,
-        height:120
-    },
-
-    {
-        x:50,
-        y:50,
-        width:50,
-        height:50
-    },
-
-    {
-        x:250,
-        y:50,
-        width:50,
-        height:50
-    }
-
-];
-
-
-
-function collision(rect1,rect2){
-
-    return (
-
-        rect1.x < rect2.x + rect2.width &&
-        rect1.x + rect1.width > rect2.x &&
-        rect1.y < rect2.y + rect2.height &&
-        rect1.y + rect1.height > rect2.y
-
-    );
-
-}
-
-
-
-function canMove(newX,newY){
-
-    const future={
-
-        x:newX,
-        y:newY,
-        width:player.width,
-        height:player.height
-
-    };
-
-
-    for(let obj of obstacles){
-
-        if(collision(future,obj)){
-
-            return false;
-
-        }
-
-    }
-
-
-    return true;
-
-}
-
-
-
-//=============================
-// REPLACE UPDATE FUNCTION
-//=============================
-
-
-function update(){
-
-
-    let newX=player.x;
-    let newY=player.y;
-
-
-
-    if(keys["w"] || keys["arrowup"])
-        newY-=player.speed;
-
-
-    if(keys["s"] || keys["arrowdown"])
-        newY+=player.speed;
-
-
-    if(keys["a"] || keys["arrowleft"])
-        newX-=player.speed;
-
-
-    if(keys["d"] || keys["arrowright"])
-        newX+=player.speed;
-
-
-
-    if(canMove(newX,player.y))
-        player.x=newX;
-
-
-    if(canMove(player.x,newY))
-        player.y=newY;
-
-
-
-    updateCamera();
-
-
-    relationshipUI.textContent=stats.relationship;
-    trustUI.textContent=stats.trust;
-    freedomUI.textContent=stats.freedom;
-
-
-    checkTeenDistance();
-
-}
-
-
-
-//=============================
-// DRAW WITH CAMERA
-//=============================
-
-
-// Replace the first lines inside draw()
-// with this camera setup
-
-
-function draw(){
-
-    ctx.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
-
-
-    ctx.save();
-
-
-    ctx.translate(
-        -camera.x,
-        -camera.y
-    );
-
-
-
-    drawGround();
-
-
-    drawTree(80,60);
-    drawTree(160,80);
-    drawTree(280,50);
-    drawTree(40,300);
-    drawTree(220,420);
-    drawTree(850,420);
-
-
-    drawHouse();
-
-
-    drawTeen();
-
-
-    drawPlayer();
-
-
-
-    ctx.restore();
-
-
-}
-
-
-
-//=============================
-// DIALOGUE SYSTEM
-//=============================
-
-
-const dialogueBox=document.getElementById("dialogueBox");
-const speaker=document.getElementById("speaker");
-const dialogueText=document.getElementById("dialogueText");
-
-
-let talking=false;
-
-let currentDialogue=[];
-
-let dialogueIndex=0;
-
-
-
-function startDialogue(name,texts){
-
-    talking=true;
-
-    currentDialogue=texts;
-
-    dialogueIndex=0;
-
-
-    dialogueBox.classList.remove("hidden");
-
-
-    speaker.textContent=name;
-
-
-    showDialogue();
-
-}
-
-
-
-function showDialogue(){
-
-    dialogueText.textContent =
-    currentDialogue[dialogueIndex];
-
-}
-
-
-
-function nextDialogue(){
-
-    dialogueIndex++;
-
-
-    if(dialogueIndex>=currentDialogue.length){
-
-        dialogueBox.classList.add("hidden");
-
-        talking=false;
-
-        return;
-
-    }
-
-
-    showDialogue();
-
-}
-
-
-
-// Press E
-
-window.addEventListener("keydown",e=>{
-
-
-    if(e.key.toLowerCase()=="e"){
-
-
-        if(talking){
-
-            nextDialogue();
-
-        }
-
-
-    }
-
-
-});
-
-
-
-//=============================
-// TEEN NPC
-//=============================
-
-
-const teen={
-
-    x:725,
-    y:300,
-    width:30,
-    height:30
-
-};
-
-
-
-function checkTeenDistance(){
-
-
-    const distance=Math.hypot(
-
-        player.x-teen.x,
-        player.y-teen.y
-
-    );
-
-
-    if(distance<60 && !talking){
-
-
-        startDialogue(
-
-            "Teen",
-
-            [
-
-                "Everyone in my class uses social media.",
-
-                "I want to create an account.",
-
-                "Can we talk about it?"
-
-            ]
-
-        );
-
-
-    }
-
-
-}
-//==================================================
-// CONNECTED CHOICES
-// script.js
-// PART 3
-// CHOICE DOORS + BRANCHING SYSTEM
-// ADD AFTER PART 2
-//==================================================
-
-
-//=============================
-// DOORS
-//=============================
-
-const doors = [
-
-    {
-        x:450,
-        y:650,
-        width:60,
-        height:80,
-        type:"strict",
-        active:false
-    },
-
-    {
-        x:650,
-        y:650,
-        width:60,
-        height:80,
-        type:"balanced",
-        active:false
-    }
-
-];
-
-
-
-//=============================
-// ENABLE CHOICES
-//=============================
-
-
-function activateDoors(){
-
-    doors.forEach(door=>{
-
-        door.active=true;
-
-    });
-
-}
-
-
-
-//=============================
-// DRAW DOORS
-//=============================
-
-
-function drawDoors(){
-
-    doors.forEach(door=>{
-
-
-        if(!door.active)
-            return;
-
-
-
-        ctx.fillStyle="#5D4037";
-
-        ctx.fillRect(
-            door.x,
-            door.y,
-            door.width,
-            door.height
-        );
-
-
-
-        ctx.fillStyle="white";
-
-        ctx.font="14px Arial";
-
-
-        if(door.type==="strict"){
-
-            ctx.fillText(
-                "STRICT",
-                door.x-5,
-                door.y-10
-            );
-
-        }
-        else{
-
-
-            ctx.fillText(
-                "TOGETHER",
-                door.x-15,
-                door.y-10
-            );
-
-
-        }
-
-
-    });
-
-
-}
-
-
-
-//=============================
-// DOOR COLLISION
-//=============================
-
-
-function checkDoors(){
-
-
-    if(!doors[0].active)
-        return;
-
-
-
-    for(let door of doors){
-
-
-        if(collision(player,door)){
-
-
-            chooseDoor(door.type);
-
-
-        }
-
-
-    }
-
-
-}
-
-
-
-//=============================
-// CHOICE RESULT
-//=============================
-
-
-function chooseDoor(choice){
-
-
-    doors.forEach(d=>{
-
-        d.active=false;
-
-    });
-
-
-
-    if(choice==="strict"){
-
-
-        stats.relationship--;
-
-        stats.trust--;
-
-        stats.freedom--;
-
-
-
-        loadMap("strictRoom");
-
-
-    }
-
-
-
-    if(choice==="balanced"){
-
-
-        stats.relationship+=2;
-
-        stats.trust+=3;
-
-        stats.freedom++;
-
-
-
-        loadMap("balancedRoom");
-
-
-    }
-
-
-}
-
-
-
-//=============================
-// MAP LOADING
-//=============================
-
-
-let currentMap="home";
-
-
-
-const maps={
-
-
-    home:{
-
-
-        name:"Home",
-
-        width:1200,
-
-        height:900
-
-    },
-
-
-    strictRoom:{
-
-
-        name:"Strict Choice",
-
-        width:1200,
-
-        height:900
-
-    },
-
-
-    balancedRoom:{
-
-
-        name:"Learning Together",
-
-        width:1200,
-
-        height:900
-
-    }
-
-
-};
-
-
-
-
-function loadMap(newMap){
-
-
-    currentMap=newMap;
-
-
-    map.name=maps[newMap].name;
-
-    map.width=maps[newMap].width;
-
-    map.height=maps[newMap].height;
-
-
-
-    player.x=200;
-
-    player.y=200;
-
-
-
-    startDialogue(
-
-        "Narrator",
-
-        [
-
-            "A new path has begun.",
-
-            "Your choices are shaping the relationship."
-
-        ]
-
-    );
-
-
-}
-
-
-
-//=============================
-// UPDATE DOOR CHECK
-//=============================
-
-
-// Add this line inside update()
-// under checkTeenDistance();
-
-
-checkDoors();
-
-
-
-//=============================
-// REPLACE TEEN CHECK
-//=============================
-
-
-function checkTeenDistance(){
-
-
-    const distance=Math.hypot(
-
-        player.x-teen.x,
-
-        player.y-teen.y
-
-    );
-
-
-
-    if(distance<60 && !talking){
-
-
-        startDialogue(
-
-            "Teen",
-
-            [
-
-                "Everyone in my class uses social media.",
-
-                "I want to create an account.",
-
-                "Can we talk about it?"
-
-            ]
-
-        );
-
-
-        setTimeout(()=>{
-
-
-            activateDoors();
-
-
-        },4000);
-
-
-
-    }
-
-
-}
-
-
-
-//=============================
-// DRAW ADDITIONS
-//=============================
-
-
-// Add this inside draw()
-// before drawPlayer();
-
-
-drawDoors();
-//==================================================
-// CONNECTED CHOICES
-// script.js
-// PART 4
-// MULTIPLE MAP VISUALS + STORY ROUTES
-// ADD AFTER PART 3
-//==================================================
-
-
-//=============================
-// MAP DATA
-//=============================
-
-const worldMaps = {
-
-
-    home:{
-
-        title:"Home",
-
-        grass:"#6FCF65",
-
-        objects:[
-
-            {type:"tree",x:80,y:80},
-            {type:"tree",x:250,y:100},
-            {type:"tree",x:900,y:300}
-
-        ]
-
-    },
-
-
-    strictRoom:{
-
-        title:"Teen Room",
-
-        grass:"#8B8B8B",
-
-        objects:[
-
-            {type:"computer",x:500,y:250},
-            {type:"bed",x:700,y:300}
-
-        ]
-
-    },
-
-
-    balancedRoom:{
-
-        title:"Family Room",
-
-        grass:"#82CFFD",
-
-        objects:[
-
-            {type:"table",x:550,y:250},
-            {type:"phone",x:700,y:260}
-
-        ]
-
-    }
-
-};
-
-
-
-//=============================
-// DRAW OBJECTS
-//=============================
-
-
-function drawObject(object){
-
-
-
-    if(object.type==="tree"){
-
-
-        ctx.fillStyle="#795548";
-
-        ctx.fillRect(
-            object.x+18,
-            object.y+30,
-            15,
-            35
-        );
-
-
-        ctx.fillStyle="#388E3C";
-
-        ctx.beginPath();
-
-        ctx.arc(
-            object.x+25,
-            object.y+20,
-            30,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fill();
-
-
-    }
-
-
-
-
-    if(object.type==="computer"){
-
-
-        ctx.fillStyle="#212121";
-
-        ctx.fillRect(
-            object.x,
-            object.y,
-            80,
-            50
-        );
-
-
-        ctx.fillStyle="#29B6F6";
-
-        ctx.fillRect(
-            object.x+10,
-            object.y+10,
-            60,
-            25
-        );
-
-
-    }
-
-
-
-
-
-    if(object.type==="bed"){
-
-
-        ctx.fillStyle="#8D6E63";
-
-        ctx.fillRect(
-            object.x,
-            object.y,
-            100,
-            40
-        );
-
-
-    }
-
-
-
-
-
-    if(object.type==="table"){
-
-
-        ctx.fillStyle="#6D4C41";
-
-        ctx.fillRect(
-            object.x,
-            object.y,
-            100,
-            40
-        );
-
-
-    }
-
-
-
-
-
-    if(object.type==="phone"){
-
-
-        ctx.fillStyle="#111";
-
-        ctx.fillRect(
-            object.x,
-            object.y,
-            35,
-            60
-        );
-
-
-        ctx.fillStyle="#4DD0E1";
-
-        ctx.fillRect(
-            object.x+5,
-            object.y+8,
-            25,
-            35
-        );
-
-
-    }
-
-
-}
-
-
-
-//=============================
-// NEW MAP DRAW SYSTEM
-//=============================
-
-
-function drawMap(){
-
-
-    let activeMap =
-    worldMaps[currentMap];
-
-
-
-    ctx.fillStyle=
-    activeMap.grass;
-
-
-
-    ctx.fillRect(
-
-        0,
-        0,
-        map.width,
-        map.height
-
-    );
-
-
-
-    activeMap.objects.forEach(drawObject);
-
-
-
-}
-
-
-
-
-
-//=============================
-// REPLACE draw()
-//=============================
-
-
-function draw(){
-
-
-    ctx.clearRect(
-
-        0,
-        0,
-        canvas.width,
-        canvas.height
-
-    );
-
-
-
-    ctx.save();
-
-
-
-    ctx.translate(
-
-        -camera.x,
-
-        -camera.y
-
-    );
-
-
-
-    drawMap();
-
-
-
-    drawDoors();
-
-
-
-    drawTeen();
-
-
-
-    drawPlayer();
-
-
-
-    ctx.restore();
-
-
-
-}
-
-
-
-//=============================
-// STORY EVENTS
-//=============================
-
-
-let storyFlags={
-
-    firstChoice:false,
-
-    strict:false,
-
-    balanced:false
-
-};
-
-
-
-
-//=============================
-// STRICT ROUTE
-//=============================
-
-
-function strictStory(){
-
-
-    storyFlags.strict=true;
-
-
-
-    startDialogue(
-
-        "Narrator",
-
-        [
-
-            "The teen's access was completely removed.",
-
-            "At first everything seems quiet.",
-
-            "But something feels different..."
-
-        ]
-
-    );
-
-
-
-}
-
-
-
-//=============================
-// BALANCED ROUTE
-//=============================
-
-
-function balancedStory(){
-
-
-    storyFlags.balanced=true;
-
-
-
-    startDialogue(
-
-        "Narrator",
-
-        [
-
-            "You sit together and discuss online safety.",
-
-            "Rules are created as a team.",
-
-            "Trust begins to grow."
-
-        ]
-
-    );
-
-
-}
-
-
-
-//=============================
-// UPDATE CHOICE RESULTS
-//=============================
-
-
-// Replace chooseDoor() with this version
-
-
-function chooseDoor(choice){
-
-
-
-    doors.forEach(d=>{
-
-        d.active=false;
-
-    });
-
-
-
-    storyFlags.firstChoice=true;
-
-
-
-    if(choice==="strict"){
-
-
-        stats.relationship--;
-
-        stats.trust--;
-
-        stats.freedom--;
-
-
-        strictStory();
-
-
-        setTimeout(()=>{
-
-            loadMap("strictRoom");
-
-        },2500);
-
-
-
-    }
-
-
-
-    if(choice==="balanced"){
-
-
-        stats.relationship+=2;
-
-        stats.trust+=3;
-
-        stats.freedom++;
-
-
-        balancedStory();
-
-
-        setTimeout(()=>{
-
-            loadMap("balancedRoom");
-
-        },2500);
-
-
-
-    }
-
-
-
-}
-//==================================================
-// CONNECTED CHOICES
-// script.js
-// PART 5
-// PLAYER ANIMATION + NPC SYSTEM + SCHOOL MAP
-// ADD AFTER PART 4
-//==================================================
-
-
-//=============================
-// PLAYER ANIMATION
-//=============================
-
-player.frame = 0;
-player.walking = false;
-player.animationTimer = 0;
-
-
-
-function updatePlayerAnimation(){
-
-
-    if(player.walking){
-
-
-        player.animationTimer++;
-
-
-        if(player.animationTimer>10){
-
-            player.frame++;
-
-            if(player.frame>1)
-                player.frame=0;
-
-
-            player.animationTimer=0;
-
-        }
-
-
-    }
-    else{
-
-        player.frame=0;
-
-    }
-
-
-}
-
-
-
-//=============================
-// REPLACE MOVEMENT PART
-// INSIDE UPDATE()
-//=============================
-
-
-function movePlayer(){
-
-
-    let newX=player.x;
-    let newY=player.y;
-
-
-    player.walking=false;
-
-
-
-    if(keys["w"] || keys["arrowup"]){
-
-        newY-=player.speed;
-        player.walking=true;
-
-    }
-
-
-
-    if(keys["s"] || keys["arrowdown"]){
-
-        newY+=player.speed;
-        player.walking=true;
-
-    }
-
-
-
-    if(keys["a"] || keys["arrowleft"]){
-
-        newX-=player.speed;
-        player.walking=true;
-
-    }
-
-
-
-    if(keys["d"] || keys["arrowright"]){
-
-        newX+=player.speed;
-        player.walking=true;
-
-    }
-
-
-
-    if(canMove(newX,player.y))
-        player.x=newX;
-
-
-    if(canMove(player.x,newY))
-        player.y=newY;
-
-
-    updatePlayerAnimation();
-
-
-}
-
-
-
-//=============================
-// REPLACE drawPlayer()
-//=============================
-
-
-function drawPlayer(){
-
-
-    let bounce = player.frame===1 ? 3 : 0;
-
-
-
-    ctx.fillStyle="#1565C0";
-
-
-    ctx.fillRect(
-
-        player.x,
-
-        player.y+bounce,
-
-        32,
-
-        32
-
-    );
-
-
-
-    // head
-
-    ctx.fillStyle="#FFD180";
-
-
-    ctx.fillRect(
-
-        player.x+6,
-
-        player.y-10+bounce,
-
-        20,
-
-        18
-
-    );
-
-
-
-    // eyes
-
-    ctx.fillStyle="#000";
-
-
-    ctx.fillRect(
-
-        player.x+11,
-
-        player.y-3+bounce,
-
-        3,
-
-        3
-
-    );
-
-
-    ctx.fillRect(
-
-        player.x+19,
-
-        player.y-3+bounce,
-
-        3,
-
-        3
-
-    );
-
-
-}
-
-
-
-//=============================
-// NPC SYSTEM
-//=============================
-
-
-const npcs=[
-
-
-    {
-
-        name:"Teen",
-
-        x:725,
-
-        y:300,
-
-        color:"#FFB74D",
-
-        dialogue:[
-
-            "Everyone is talking about social media.",
-
-            "I want to make my own choices.",
-
-            "Can we figure this out together?"
-
-        ]
-
-    },
-
-
-
-    {
-
-        name:"Teacher",
-
-        x:300,
-
-        y:250,
-
-        color:"#AB47BC",
-
-        map:"school",
-
-        dialogue:[
-
-            "A student is having trouble online.",
-
-            "Digital spaces can affect real life.",
-
-            "Support and communication matter."
-
-        ]
-
-    }
-
-
-
-];
-
-
-
-//=============================
-// DRAW NPCS
-//=============================
-
-
-function drawNPCs(){
-
-
-    npcs.forEach(npc=>{
-
-
-        if(npc.map && npc.map!==currentMap)
-            return;
-
-
-
-        ctx.fillStyle=npc.color;
-
-
-
-        ctx.fillRect(
-
-            npc.x,
-
-            npc.y,
-
-            30,
-
-            35
-
-        );
-
-
-
-        ctx.fillStyle="white";
-
-        ctx.font="14px Arial";
-
-
-        ctx.fillText(
-
-            npc.name,
-
-            npc.x-10,
-
-            npc.y-10
-
-        );
-
-
-
-    });
-
-
-}
-
-
-
-//=============================
-// NPC INTERACTION
-//=============================
-
-
-function checkNPCs(){
-
-
-    if(talking)
-        return;
-
-
-
-    npcs.forEach(npc=>{
-
-
-        if(npc.map && npc.map!==currentMap)
-            return;
-
-
-
-        let distance=Math.hypot(
-
-            player.x-npc.x,
-
-            player.y-npc.y
-
-        );
-
-
-
-        if(distance<60 && keys["e"]){
-
-
-            startDialogue(
-
-                npc.name,
-
-                npc.dialogue
-
-            );
-
-
-            keys["e"]=false;
-
-
-        }
-
-
-
-    });
-
-
-}
-
-
-
-//=============================
-// SCHOOL MAP
-//=============================
-
-
-worldMaps.school={
-
-
-    title:"School",
-
-    grass:"#D7CCC8",
-
-
-    objects:[
-
-
-        {
-            type:"table",
-            x:200,
-            y:200
-        },
-
-
-        {
-            type:"table",
-            x:400,
-            y:200
-        },
-
-
-        {
-            type:"computer",
-            x:600,
-            y:250
-        }
-
-
-    ]
-
-
-};
-
-
-
-//=============================
-// UPDATE FUNCTION ADDITIONS
-//=============================
-
-
-// Add these lines inside update()
-
-
-movePlayer();
-
-checkNPCs();
-
-
-
-//=============================
-// DRAW FUNCTION ADDITIONS
-//=============================
-
-
-// Add this line inside draw()
-// after drawMap();
-
-
-drawNPCs();
-
-//==================================================
-// CONNECTED CHOICES
-// script.js
-// PART 6
-// SCHOOL LEVEL + SECOND CHOICE SYSTEM
-// ADD AFTER PART 5
-//==================================================
-
-
-//=============================
-// SCHOOL INTRO
-//=============================
-
-let schoolStarted=false;
-
-
-function enterSchool(){
-
-
-    currentMap="school";
-
-
-    map.name="School";
-
-
-    player.x=150;
-
-    player.y=500;
-
-
-
-    startDialogue(
-
-        "Teacher",
-
-        [
-
-            "Welcome to school.",
-
-            "A student has reported a problem online.",
-
-            "How should a parent respond?"
-
-        ]
-
-    );
-
-
-    createSchoolDoors();
-
-
-}
-
-
-
-//=============================
-// SCHOOL DOORS
-//=============================
-
-
-let schoolDoors=[];
-
-
-
-function createSchoolDoors(){
-
-
-    schoolDoors=[
-
-
-        {
-
-            x:350,
-
-            y:650,
-
-            width:60,
-
-            height:80,
-
-            type:"punish",
-
-            active:true
-
-        },
-
-
-        {
-
-            x:650,
-
-            y:650,
-
-            width:60,
-
-            height:80,
-
-            type:"support",
-
-            active:true
-
-        }
-
-
-    ];
-
-
-
-}
-
-
-
-//=============================
-// DRAW SCHOOL DOORS
-//=============================
-
-
-function drawSchoolDoors(){
-
-
-
-    if(currentMap!=="school")
-        return;
-
-
-
-    schoolDoors.forEach(door=>{
-
-
-        ctx.fillStyle="#5D4037";
-
-
-        ctx.fillRect(
-
-            door.x,
-
-            door.y,
-
-            door.width,
-
-            door.height
-
-        );
-
-
-
-        ctx.fillStyle="white";
-
-        ctx.font="13px Arial";
-
-
-
-        if(door.type==="punish"){
-
-
-            ctx.fillText(
-
-                "PUNISH",
-
-                door.x-8,
-
-                door.y-10
-
-            );
-
-
-        }
-
-
-
-        else{
-
-
-            ctx.fillText(
-
-                "SUPPORT",
-
-                door.x-10,
-
-                door.y-10
-
-            );
-
-
-        }
-
-
-
-    });
-
-
-}
-
-
-
-//=============================
-// SCHOOL CHOICE CHECK
-//=============================
-
-
-function checkSchoolDoors(){
-
-
-
-    if(currentMap!=="school")
-        return;
-
-
-
-    schoolDoors.forEach(door=>{
-
-
-        if(collision(player,door)){
-
-
-            schoolChoice(door.type);
-
-
-        }
-
-
-    });
-
-
-
-}
-
-
-
-//=============================
-// SCHOOL CHOICE RESULTS
-//=============================
-
-
-function schoolChoice(choice){
-
-
-
-    schoolDoors.forEach(d=>{
-
-        d.active=false;
-
-    });
-
-
-
-    if(choice==="punish"){
-
-
-
-        stats.relationship--;
-
-        stats.trust--;
-
-        stats.freedom--;
-
-
-
-        startDialogue(
-
-            "Teen",
-
-            [
-
-                "I feel like I cannot tell you anything.",
-
-                "Maybe I should handle problems alone."
-
-            ]
-
-        );
-
-
-
-        setTimeout(()=>{
-
-
-            loadMap("internetCity");
-
-
-        },3000);
-
-
-
-    }
-
-
-
-
-
-    if(choice==="support"){
-
-
-
-        stats.relationship+=2;
-
-        stats.trust+=2;
-
-        stats.freedom++;
-
-
-
-        startDialogue(
-
-            "Teen",
-
-            [
-
-                "Thanks for listening.",
-
-                "I feel safer talking about problems."
-
-            ]
-
-        );
-
-
-
-        setTimeout(()=>{
-
-
-            loadMap("internetCity");
-
-
-        },3000);
-
-
-
-    }
-
-
-
-}
-
-
-
-//=============================
-// INTERNET CITY MAP
-//=============================
-
-
-worldMaps.internetCity={
-
-
-    title:"Internet City",
-
-
-    grass:"#263238",
-
-
-    objects:[
-
-
-        {
-
-            type:"computer",
-
-            x:250,
-
-            y:250
-
-        },
-
-
-        {
-
-            type:"phone",
-
-            x:500,
-
-            y:300
-
-        },
-
-
-        {
-
-            type:"table",
-
-            x:750,
-
-            y:350
-
-        }
-
-
-
-    ]
-
-};
-
-
-
-//=============================
-// INTERNET CITY START
-//=============================
-
-
-function enterInternetCity(){
-
-
-    currentMap="internetCity";
-
-
-    map.name="Internet City";
-
-
-    player.x=400;
-
-    player.y=500;
-
-
-
-    startDialogue(
-
-        "Guide",
-
-        [
-
-            "Welcome to the digital world.",
-
-            "Every action online creates consequences."
-
-        ]
-
-    );
-
-
-}
-
-
-
-//=============================
-// DIGITAL FREEDOM SYSTEM
-//=============================
-
-
-function changeFreedom(amount){
-
-
-    stats.freedom+=amount;
-
-
-
-    if(stats.freedom<0)
-
-        stats.freedom=0;
-
-
-
-    if(stats.freedom>10)
-
-        stats.freedom=10;
-
-
-
-}
-
-
-
-//=============================
-// TRUST SYSTEM
-//=============================
-
-
-function changeTrust(amount){
-
-
-    stats.trust+=amount;
-
-
-
-    if(stats.trust<0)
-
-        stats.trust=0;
-
-
-
-    if(stats.trust>10)
-
-        stats.trust=10;
-
-
-
-}
-
-
-
-//=============================
-// RELATIONSHIP SYSTEM
-//=============================
-
-
-function changeRelationship(amount){
-
-
-    stats.relationship+=amount;
-
-
-
-    if(stats.relationship<0)
-
-        stats.relationship=0;
-
-
-
-    if(stats.relationship>10)
-
-        stats.relationship=10;
-
-
-
-}
-
-
-
-//=============================
-// ADD TO DRAW()
-//=============================
-
-
-// Add:
-
-drawSchoolDoors();
-
-
-
-//=============================
-// ADD TO UPDATE()
-//=============================
-
-
-// Add:
-
-checkSchoolDoors();
-
-//==================================================
-// CONNECTED CHOICES
-// script.js
-// PART 7
-// INTERNET CITY + PHONE EVENTS + ACHIEVEMENTS + SAVE SYSTEM
-// ADD AFTER PART 6
-//==================================================
-
-
-//=============================
-// ACHIEVEMENTS
-//=============================
-
-
-const achievements={
-
-
-    firstTalk:false,
-
-    trustBuilder:false,
-
-    digitalExpert:false,
-
-    balancedPath:false
-
-};
-
-
-
-function unlockAchievement(name){
-
-
-    if(!achievements[name]){
-
-
-        achievements[name]=true;
-
-
-        showNotification(
-
-            "Achievement Unlocked: "+name
-
-        );
-
-
-    }
-
-
-}
-
-
-
-//=============================
-// NOTIFICATION SYSTEM
-//=============================
-
-
-let notification="";
-
-let notificationTimer=0;
-
-
-
-function showNotification(text){
-
-
-    notification=text;
-
-    notificationTimer=180;
-
-
-}
-
-
-
-
-function drawNotification(){
-
-
-    if(notificationTimer<=0)
-        return;
-
-
-
-    ctx.fillStyle="#222";
-
-
-    ctx.fillRect(
-
-        250,
-
-        40,
-
-        460,
-
-        50
-
-    );
-
-
-
-    ctx.fillStyle="white";
-
-
-    ctx.font="20px Arial";
-
-
-    ctx.fillText(
-
-        notification,
-
-        270,
-
-        72
-
-    );
-
-
-
-    notificationTimer--;
-
-
-}
-
-
-
-//=============================
-// INTERNET NPC
-//=============================
-
-
-npcs.push(
-
-
-{
-
-    name:"Online Friend",
-
-    x:550,
-
-    y:180,
-
-    map:"internetCity",
-
-
-    color:"#29B6F6",
-
-
-    dialogue:[
-
-        "Someone online wants to become friends.",
-
-        "Should you share personal information?",
-
-        "Think before you click."
-
-    ]
-
-
-}
-
-
-
-);
-
-
-
-
-//=============================
-// PHONE OBJECT
-//=============================
-
-
-const phoneEvent={
-
-
-    x:500,
-
-    y:300,
-
-    width:35,
-
-    height:60,
-
-
-    completed:false
-
-
-};
-
-
-
-
-//=============================
-// PHONE INTERACTION
-//=============================
-
-
-function checkPhone(){
-
-
-    if(currentMap!=="internetCity")
-        return;
-
-
-
-    let distance=Math.hypot(
-
-        player.x-phoneEvent.x,
-
-        player.y-phoneEvent.y
-
-    );
-
-
-
-    if(distance<70 && keys["e"] && !phoneEvent.completed){
-
-
-
-        phoneEvent.completed=true;
-
-
-        startDialogue(
-
-            "Phone",
-
-            [
-
-                "A message appears:",
-
-                "\"Someone asks for your private information.\"",
-
-                "A good choice is to stay safe and ask for help."
-
-            ]
-
-        );
-
-
-
-        changeTrust(2);
-
-        changeRelationship(1);
-
-        changeFreedom(1);
-
-
-
-        unlockAchievement("digitalExpert");
-
-
-        saveGame();
-
-
-        keys["e"]=false;
-
-
-    }
-
-
-
-}
-
-
-
-//=============================
-// SAVE SYSTEM
-//=============================
-
-
-function saveGame(){
-
-
-
-    let saveData={
-
-
-        stats:stats,
-
-        map:currentMap,
-
-        achievements:achievements
-
-
-    };
-
-
-
-    localStorage.setItem(
-
-        "connectedChoicesSave",
-
-        JSON.stringify(saveData)
-
-    );
-
-
-}
-
-
-
-//=============================
-// LOAD SAVE
-//=============================
-
-
-function loadGame(){
-
-
-
-    let saved=
-
-    localStorage.getItem(
-
-        "connectedChoicesSave"
-
-    );
-
-
-
-    if(!saved)
-        return;
-
-
-
-    let data=
-
-    JSON.parse(saved);
-
-
-
-    stats.relationship=
-
-    data.stats.relationship;
-
-
-
-    stats.trust=
-
-    data.stats.trust;
-
-
-
-    stats.freedom=
-
-    data.stats.freedom;
-
-
-
-    currentMap=
-
-    data.map;
-
-
-
-    Object.assign(
-
-        achievements,
-
-        data.achievements
-
-    );
-
-
-}
-
-
-
-//=============================
-// QUEST SYSTEM
-//=============================
-
-
-const quests=[
-
-
-{
-
-    title:"Build Trust",
-
-    complete:false
-
-},
-
-
-{
-
-    title:"Learn Online Safety",
-
-    complete:false
-
-},
-
-
-{
-
-    title:"Understand Your Teen",
-
-    complete:false
-
-}
-
-
-];
-
-
-
-function updateQuests(){
-
-
-
-    if(stats.trust>=5)
-
-        quests[0].complete=true;
-
-
-
-    if(stats.freedom>=5)
-
-        quests[1].complete=true;
-
-
-
-    if(stats.relationship>=7)
-
-        quests[2].complete=true;
-
-
-
-}
-
-
-
-
-//=============================
-// QUEST DISPLAY
-//=============================
-
-
-function drawQuest(){
-
-
-
-    ctx.fillStyle="rgba(0,0,0,.6)";
-
-
-    ctx.fillRect(
-
-        20,
-
-        430,
-
-        250,
-
-        90
-
-    );
-
-
-
-    ctx.fillStyle="white";
-
-
-    ctx.font="14px Arial";
-
-
-    ctx.fillText(
-
-        "QUESTS",
-
-        35,
-
-        455
-
-    );
-
-
-
-    quests.forEach((q,i)=>{
-
-
-        ctx.fillText(
-
-            (q.complete?"✓ ":"○ ")+q.title,
-
-            35,
-
-            480+i*18
-
-        );
-
-
-    });
-
-
-}
-
-
-
-//=============================
-// REPLACE UPDATE ADDITIONS
-//=============================
-
-
-function updateExtras(){
-
-
-    checkPhone();
-
-
-    updateQuests();
-
-
-}
-
-
-
-//=============================
-// REPLACE DRAW ADDITIONS
-//=============================
-
-
-function drawExtras(){
-
-
-    drawNotification();
-
-    drawQuest();
-
-
-}
-
-
-
-//=============================
-// ADD THESE TO UPDATE()
-//=============================
-
-updateExtras();
-
-
-
-//=============================
-// ADD THESE TO DRAW()
-//=============================
-
-drawExtras();
-
-
-
-//=============================
-// START LOAD
-//=============================
-
-
-loadGame();
-//==================================================
-// CONNECTED CHOICES
-// script.js
-// PART 8
-// ENDINGS + DAY/NIGHT + SOUND + FINAL POLISH
-// ADD AFTER PART 7
-//==================================================
-
-
-//=============================
-// ENDING SYSTEM
-//=============================
-
-
-let gameFinished=false;
-
-
-
-function calculateEnding(){
-
-
-
-    let ending="";
-
-
-
-    if(
-
-        stats.relationship>=8 &&
-        stats.trust>=7 &&
-        stats.freedom>=6
-
-    ){
-
-        ending="connection";
-
-
-    }
-
-
-    else if(
-
-        stats.trust>=4 &&
-        stats.relationship>=5
-
-    ){
-
-        ending="learning";
-
-
-    }
-
-
-    else if(
-
-        stats.relationship<=3 &&
-        stats.trust<=3
-
-    ){
-
-        ending="restrictive";
-
-
-    }
-
-
-    else{
-
-
-        ending="permissive";
-
-
-    }
-
-
-
-    return ending;
-
-
-}
-
-
-
-
-const endings={
-
-
-
-connection:{
-
-
-title:"🤝 Strong Connection",
-
-
-text:[
-
-"Your teen feels safe talking to you.",
-
-"You created rules together.",
-
-"Technology became a tool for trust."
-
-]
-
-
-},
-
-
-
-learning:{
-
-
-title:"📚 Learning Together",
-
-
-text:[
-
-"You are still improving.",
-
-"But communication is growing.",
-
-"Every conversation helps."
-
-]
-
-
-},
-
-
-
-restrictive:{
-
-
-title:"🔒 Too Restrictive",
-
-
-text:[
-
-"Rules were created without discussion.",
-
-"Your teen became afraid to share problems.",
-
-"Trust needs to be rebuilt."
-
-]
-
-
-},
-
-
-
-permissive:{
-
-
-title:"⚠️ Too Permissive",
-
-
-text:[
-
-"Freedom was given without enough guidance.",
-
-"Online risks became harder to manage.",
-
-"Support and boundaries both matter."
-
-]
-
-
-}
-
-
-
-};
-
-
-
-//=============================
-// ENDING MAP
-//=============================
-
-
-worldMaps.ending={
-
-
-    title:"Ending",
-
-    grass:"#263238",
-
-    objects:[]
-
-};
-
-
-
-
-
-function startEnding(){
-
-
-
-    currentMap="ending";
-
-
-    player.x=450;
-
-    player.y=300;
-
-
-
-    let result=
-
-    calculateEnding();
-
-
-
-    gameFinished=true;
-
-
-
-    startDialogue(
-
-        endings[result].title,
-
-        endings[result].text
-
-    );
-
-
-
-    unlockAchievement(
-
-        "finished"
-
-    );
-
-
-}
-
-
-
-
-
-//=============================
-// DAY NIGHT SYSTEM
-//=============================
-
-
-let timeOfDay=0;
-
-
-
-function updateTime(){
-
-
-
-    timeOfDay+=0.002;
-
-
-
-    if(timeOfDay>1)
-
-        timeOfDay=0;
-
-
-}
-
-
-
-
-function drawDayNight(){
-
-
-
-    let darkness=
-
-    Math.abs(
-
-        Math.sin(timeOfDay*Math.PI)
-
-    );
-
-
-
-    ctx.fillStyle=
-
-    "rgba(20,20,50,"+
-
-    darkness*.45+
-
-    ")";
-
-
-
-    ctx.fillRect(
-
-        camera.x,
-
-        camera.y,
-
-        canvas.width,
-
-        canvas.height
-
-    );
-
-
-
-}
-
-
-
-//=============================
-// RETRO SOUND SYSTEM
-//=============================
-
-
-const audio=
-
-new (window.AudioContext || window.webkitAudioContext)();
-
-
-
-function playTone(freq,duration){
-
-
-
-    let osc=
-
-    audio.createOscillator();
-
-
-
-    let gain=
-
-    audio.createGain();
-
-
-
-    osc.connect(gain);
-
-    gain.connect(audio.destination);
-
-
-
-    osc.frequency.value=freq;
-
-
-    osc.type="square";
-
-
-
-    gain.gain.value=.05;
-
-
-
-    osc.start();
-
-
-
-    setTimeout(()=>{
-
-        osc.stop();
-
-    },duration);
-
-
-
-}
-
-
-
-//=============================
-// SOUND EFFECTS
-//=============================
-
-
-function soundChoice(){
-
-
-    playTone(440,120);
-
-}
-
-
-
-function soundTalk(){
-
-
-    playTone(300,80);
-
-}
-
-
-
-
-//=============================
-// PAUSE SYSTEM
-//=============================
-
-
-let paused=false;
-
-
-
-window.addEventListener(
-
-"keydown",
-
-e=>{
-
-
-    if(e.key==="Escape"){
-
-
-        paused=!paused;
-
-
-    }
-
-
-});
-
-
-
-
-function drawPause(){
-
-
-
-    if(!paused)
-        return;
-
-
-
-    ctx.fillStyle="rgba(0,0,0,.7)";
-
-
-
-    ctx.fillRect(
-
-        0,
-
-        0,
-
-        canvas.width,
-
-        canvas.height
-
-    );
-
-
-
-    ctx.fillStyle="white";
-
-    ctx.font="40px Arial";
-
-
-    ctx.fillText(
-
-        "PAUSED",
-
-        380,
-
-        270
-
-    );
-
-
-}
-
-
-
-
-
-//=============================
-// FINAL UPDATE WRAPPER
-//=============================
-
-
-const oldUpdate=update;
-
-
-update=function(){
-
-
-    if(paused)
-        return;
-
-
-
-    oldUpdate();
-
-
-    updateTime();
-
-
-
-};
-
-
-
-
-
-//=============================
-// FINAL DRAW WRAPPER
-//=============================
-
-
-const oldDraw=draw;
-
-
-draw=function(){
-
-
-
-    oldDraw();
-
-
-    drawDayNight();
-
-
-    drawPause();
-
-
-
-};
-
-
-
-
-//=============================
-// ENDING TRIGGER
-//=============================
-
-
-// Press F to finish testing
-
-
-window.addEventListener(
-
-"keydown",
-
-e=>{
-
-
-    if(e.key.toLowerCase()=="f"){
-
-
-        startEnding();
-
-
-    }
-
-
-});
-
-
-
-//==================================================
-// GAME COMPLETE
-//==================================================
-
