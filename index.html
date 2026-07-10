@@ -260,6 +260,34 @@
   .day-complete-banner h4{ margin:2px 0 4px; font-size:15px; }
   .day-complete-banner p{ margin:0; font-size:11.5px; opacity:.75; }
 
+  .sources-link{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    background:none; border:none; color:var(--text-dim); font-family:var(--font-mono);
+    font-size:10px; letter-spacing:.5px; text-transform:uppercase; padding:8px 0 16px;
+    text-decoration:underline; text-underline-offset:2px;
+  }
+  .sources-link:hover{ color:var(--circuit); }
+
+  /* sources screen */
+  .sources-screen{ display:flex; flex-direction:column; height:100%; }
+  .sources-header{ flex:0 0 auto; padding:20px 18px 14px; background:var(--ink); color:#fff; }
+  .sources-header .eyebrow{ color:var(--glimpse-soft); margin-bottom:4px; }
+  .sources-header h3{ font-size:16px; margin:0; letter-spacing:-.2px; }
+  .sources-body{ flex:1 1 auto; overflow-y:auto; padding:16px 18px 10px; display:flex; flex-direction:column; gap:14px; }
+  .sources-note{
+    background:#fdf1e6; border:1px solid #f3ddb8; border-radius:12px; padding:12px 13px;
+    font-size:11.5px; line-height:1.6; color:var(--text);
+  }
+  .sources-note b{ display:block; font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; color:#8a5a1a; }
+  .sources-group-label{ font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-dim); font-weight:700; margin-top:2px; }
+  .source-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 12px; }
+  .source-title{ font-size:12.5px; font-weight:800; margin-bottom:2px; }
+  .source-pub{ font-size:10.5px; color:var(--text-dim); font-family:var(--font-mono); margin-bottom:6px; }
+  .source-desc{ font-size:11.5px; color:var(--text-dim); line-height:1.5; margin-bottom:7px; }
+  .source-link{ font-size:11px; color:var(--circuit); text-decoration:none; font-weight:700; word-break:break-all; }
+  .source-link:hover{ text-decoration:underline; }
+  .sources-footer{ flex:0 0 auto; padding:12px 18px 16px; }
+
   /* decision screen */
   .decision-screen{ display:flex; flex-direction:column; height:100%; }
   .decision-header{ padding:18px 18px 6px; flex:0 0 auto; }
@@ -745,6 +773,48 @@ const POLICIES = [
     result:"Reactions were mixed. It felt more respectful than being checked on without warning, but several said it still didn't address why they were reaching for the phone in the first place." }
 ];
 
+// Real, publicly available research on the themes this simulator dramatizes.
+// See renderSources() and the disclaimer text there for how these relate
+// to the specific numbers used in each scenario.
+const SOURCES = [
+  {
+    title:"Teens, Social Media and Technology 2024",
+    pub:"Pew Research Center \u00B7 Dec 2024",
+    desc:"Nationally representative survey of U.S. teens on notification habits, near-constant online use, and platform use.",
+    url:"https://www.pewresearch.org/internet/2024/12/12/teens-social-media-and-technology-2024/"
+  },
+  {
+    title:"Teens and Cyberbullying 2022",
+    pub:"Pew Research Center \u00B7 Dec 2022",
+    desc:"Survey on how many teens have witnessed or experienced online harassment, and which behaviors are most common.",
+    url:"https://www.pewresearch.org/internet/2022/12/15/teens-and-cyberbullying-2022/"
+  },
+  {
+    title:"Teens and Internet, Device Access Fact Sheet",
+    pub:"Pew Research Center \u00B7 2024\u201325",
+    desc:"Background data on smartphone ownership and daily internet use among U.S. teens.",
+    url:"https://www.pewresearch.org/internet/fact-sheet/teens-and-internet-device-access-fact-sheet/"
+  },
+  {
+    title:"Teachers' Essential Guide to Cyberbullying Prevention",
+    pub:"Common Sense Education",
+    desc:"Explains the bystander / ally / upstander framework this simulator's \u201Cwitnessing\u201D scenario is built around.",
+    url:"https://www.commonsense.org/education/articles/teachers-essential-guide-to-cyberbullying-prevention"
+  },
+  {
+    title:"The New Bedtime Companion: Devices",
+    pub:"Common Sense Media",
+    desc:"Survey research on teens and parents using devices in the hour before sleep.",
+    url:"https://www.commonsensemedia.org/press-releases/the-new-bedtime-companion-devices"
+  },
+  {
+    title:"Bedtime Screen Use and Teen Sleep",
+    pub:"Sleep.com, summarizing Nagata et al., Sleep Health (2023)",
+    desc:"Research on nighttime phone use, notifications interrupting sleep, and FOMO-driven \u201Cone more scroll\u201D behavior.",
+    url:"https://www.sleep.com/sleep-health/bedtime-screen-use-and-teen-sleep"
+  }
+];
+
 /* -------------------------------------------------------------------------
    STATE
 ------------------------------------------------------------------------- */
@@ -860,15 +930,66 @@ function renderHome(){
       <div class="big-clock">${STATUS_TIMES[phase]}</div>
       <div class="app-grid">${storyApps}${utilApps}</div>
       ${banner}
+      <button class="sources-link" id="btnSources">\u24D8 Sources &amp; Data Notes</button>
     </div>
   `);
   $("#sbTime").textContent = STATUS_TIMES[phase];
+
+  $("#btnSources").addEventListener("click", renderSources);
 
   if(dayDone){
     $("#bannerDone").addEventListener("click", () => { renderDaySummary(); });
   } else {
     setTimeout(() => queueNotification(SCENARIOS[state.decisionIndex]), 550);
   }
+}
+
+/* -------------------------------------------------------------------------
+   PHONE: SOURCES SCREEN
+   -------------------------------------------------------------------------
+   Honesty matters here. The per-choice percentages, quotes, and
+   adult-assumption/teen-reality lines in this simulator were written to
+   illustrate realistic, plausible patterns for an educational experience
+   \u2014 they are not pulled from a specific survey question by question.
+   This screen says that plainly, and then points to the real published
+   research on these themes so the underlying phenomena are backed by
+   something you can actually go read.
+------------------------------------------------------------------------- */
+function renderSources(){
+  const cards = SOURCES.map(s => `
+    <div class="source-card">
+      <div class="source-title">${s.title}</div>
+      <div class="source-pub">${s.pub}</div>
+      <div class="source-desc">${s.desc}</div>
+      <a class="source-link" href="${s.url}" target="_blank" rel="noopener noreferrer">${s.url}</a>
+    </div>
+  `).join("");
+
+  setPhoneScreen(`
+    <div class="sources-screen">
+      <div class="sources-header">
+        <div class="eyebrow">Sources &amp; Data Notes</div>
+        <h3>Where this experience comes from</h3>
+      </div>
+      <div class="sources-body">
+        <div class="sources-note">
+          <b>About the numbers in each scenario</b>
+          The percentages, quotes, and \u201Cadult assumption vs. teen reality\u201D lines you see after each choice
+          were written by the creators of this simulator to illustrate realistic, plausible patterns \u2014
+          they are not results from a specific survey question. Treat them as narrative, not data.
+        </div>
+        <div>
+          <div class="sources-group-label">Real research on these themes</div>
+        </div>
+        ${cards}
+      </div>
+      <div class="sources-footer">
+        <button class="btn btn-ghost full-btn" id="btnSourcesBack">\u25C0 Back to Home</button>
+      </div>
+    </div>
+  `);
+
+  $("#btnSourcesBack").addEventListener("click", renderHome);
 }
 
 function queueNotification(scenario){
