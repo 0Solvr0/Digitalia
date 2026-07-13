@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Walk in My Feed</title>
+<title>Walk My Wi-Fi</title>
 <style>
   :root{
     --ink:#14121f;
@@ -438,7 +438,7 @@
     <div class="card" style="text-align:center;">
       <div class="logo-mark" style="margin-left:auto;margin-right:auto;"></div>
       <div class="eyebrow" style="text-align:center;">An Empathy Simulator For Adults</div>
-      <h1 class="headline" style="text-align:center;">Walk in My Feed</h1>
+      <h1 class="headline" style="text-align:center;">Walk My Wi-Fi</h1>
       <p class="sub" style="margin-left:auto;margin-right:auto;text-align:center;">
         This isn't a lesson about online safety. It's a day — one full day —
         lived through a teenager's phone. Every notification, every group chat,
@@ -499,7 +499,7 @@
   <section id="screen-finale" class="panel-screen">
     <div class="card" style="text-align:center;">
       <div class="eyebrow" style="text-align:center;">Simulation Complete</div>
-      <h2 class="headline" style="text-align:center;" id="finaleHeadline">You walked a day in their feed.</h2>
+      <h2 class="headline" style="text-align:center;" id="finaleHeadline">You walked a day on their Wi-Fi.</h2>
       <p class="sub" style="margin-left:auto;margin-right:auto;text-align:center;">
         Every choice you made today, a real teenager makes too — usually several times before breakfast.
         None of it is as simple as it looks from the outside.
@@ -533,7 +533,7 @@
 
 <script>
 /* =========================================================================
-   WALK IN MY FEED — a single-file empathy simulator
+   WALK MY WI-FI — a single-file empathy simulator
    ========================================================================= */
 
 /* -------------------------------------------------------------------------
@@ -1412,7 +1412,7 @@ function renderPolicyResult(){
    FINALE + RESET
 ------------------------------------------------------------------------- */
 function renderFinale(){
-  $("#finaleHeadline").textContent = "You walked a day in " + state.character.name + "\u2019s feed.";
+  $("#finaleHeadline").textContent = "You walked a day on " + state.character.name + "\u2019s Wi-Fi.";
   showPanel("screen-finale");
 }
 
